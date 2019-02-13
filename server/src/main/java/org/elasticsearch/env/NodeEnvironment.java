@@ -157,6 +157,8 @@ public final class NodeEnvironment  implements Closeable {
 
     /**
      * Maximum number of data nodes that should run in an environment.
+     * Michel:同一个环境下运行的最大节点数
+     * Question:看到解释是说同一个data目录上最大运行的节点个数，那同一机器上使用不同的data目录呢？
      */
     public static final Setting<Integer> MAX_LOCAL_STORAGE_NODES_SETTING = Setting.intSetting("node.max_local_storage_nodes", 1, 1,
         Property.NodeScope);
@@ -179,6 +181,8 @@ public final class NodeEnvironment  implements Closeable {
     public static final String INDICES_FOLDER = "indices";
     public static final String NODE_LOCK_FILENAME = "node.lock";
 
+    //Grammar:静态内部类：1) 非静态内部类则其内不能声明static字段或方法 2)非静态内部类可以随意访问外部类的成员即使为private,但静态内部类只能访问外部类的静态成员
+    //一般开发人员可以这样理解：
     public static class NodeLock implements Releasable {
 
         private final int nodeId;
@@ -243,7 +247,9 @@ public final class NodeEnvironment  implements Closeable {
      *      node name in log messages if it wasn't loaded from
      *      elasticsearch.yml
      */
+    //michel:生成节点环境
     public NodeEnvironment(Settings settings, Environment environment, Consumer<String> nodeIdConsumer) throws IOException {
+        // step 1 如果没有开启local_storage则将路径配置置空
         if (!DiscoveryNode.nodeRequiresLocalStorage(settings)) {
             nodePaths = null;
             sharedDataPath = null;

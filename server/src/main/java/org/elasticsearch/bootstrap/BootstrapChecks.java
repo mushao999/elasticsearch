@@ -51,6 +51,10 @@ import java.util.regex.Pattern;
  * We enforce bootstrap checks once a node has the transport protocol bound to a non-loopback interface or if the system property {@code
  * es.enforce.bootstrap.checks} is set to {@true}. In this case we assume the node is running in production and all bootstrap checks must
  * pass.
+ * Michel:用于进行对启动成功与否进行校验：1）定义了一些内置的check 2）参数中可以添加一些额外的check 3）如果节点将transport protocol绑定调一个
+ * non-loopback的网络接口或者es.enforce.bootstrap.checks被显式指定为true，则进行check
+ * 在启动的setup阶段被调用
+ * Done
  */
 final class BootstrapChecks {
 
@@ -70,8 +74,8 @@ final class BootstrapChecks {
     static void check(final BootstrapContext context, final BoundTransportAddress boundTransportAddress,
                       List<BootstrapCheck> additionalChecks) throws NodeValidationException {
         final List<BootstrapCheck> builtInChecks = checks();
-        final List<BootstrapCheck> combinedChecks = new ArrayList<>(builtInChecks);
-        combinedChecks.addAll(additionalChecks);
+        final List<BootstrapCheck> combinedChecks = new ArrayList<>(builtInChecks);//添加内置check
+        combinedChecks.addAll(additionalChecks);//添加额外的check
         check(  context,
                 enforceLimits(boundTransportAddress, DiscoveryModule.DISCOVERY_TYPE_SETTING.get(context.settings)),
                 Collections.unmodifiableList(combinedChecks));
@@ -180,6 +184,7 @@ final class BootstrapChecks {
     }
 
     // the list of checks to execute
+    //Michel:一些内置的check如heapsize，文件描述符，Mlock等
     static List<BootstrapCheck> checks() {
         final List<BootstrapCheck> checks = new ArrayList<>();
         checks.add(new HeapSizeCheck());

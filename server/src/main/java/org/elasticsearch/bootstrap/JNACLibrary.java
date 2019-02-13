@@ -31,6 +31,11 @@ import java.util.List;
 
 /**
  * java mapping to some libc functions
+ * Michel:java映射一些libc的函数
+ * 主要是：
+ * mlockall ： 锁定足够的内存并禁止内存swap
+ * geteuid ： 获取有效的用户标识符
+ * getrlimit ： 获取进程的最大资源使用量
  */
 final class JNACLibrary {
 

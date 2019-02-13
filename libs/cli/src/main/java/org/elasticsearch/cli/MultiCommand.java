@@ -30,6 +30,9 @@ import java.util.Map;
 
 /**
  * A cli tool which is made up of multiple subcommands.
+ * Michel:
+ * 多个子命令的集合，就是遍历串行执行
+ * done
  */
 public class MultiCommand extends Command {
 

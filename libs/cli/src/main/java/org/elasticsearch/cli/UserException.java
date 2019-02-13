@@ -21,6 +21,9 @@ package org.elasticsearch.cli;
 
 /**
  * An exception representing a user fixable problem in {@link Command} usage.
+ * Michel:
+ * 用户可修复的错误定义
+ * done
  */
 public class UserException extends Exception {
 

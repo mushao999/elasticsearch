@@ -28,6 +28,7 @@ import java.nio.file.Path;
  * these checked exceptions so that
  * {@link Bootstrap#init(boolean, Path, boolean, org.elasticsearch.env.Environment)}
  * does not have to declare all of these checked exceptions.
+ * Michel:启动失败异常定义
  */
 class BootstrapException extends Exception {
 

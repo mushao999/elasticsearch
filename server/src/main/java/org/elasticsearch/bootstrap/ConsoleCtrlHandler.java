@@ -18,7 +18,8 @@
  */
 
 package org.elasticsearch.bootstrap;
-
+//Michel:创建关闭处理handler，在启动流程的initNatives中被设置
+//
 public interface ConsoleCtrlHandler {
 
     int CTRL_CLOSE_EVENT = 2;

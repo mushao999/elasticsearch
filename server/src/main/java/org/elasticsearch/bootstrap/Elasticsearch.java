@@ -42,6 +42,9 @@ import java.util.Locale;
 
 /**
  * This class starts elasticsearch.
+ * Michel:Elasticsearch的启动入口程序
+ * 获取一些命令行参数，调用Bootstrap的init方法
+ * Done
  */
 class Elasticsearch extends EnvironmentAwareCommand {
 
@@ -75,9 +78,9 @@ class Elasticsearch extends EnvironmentAwareCommand {
     public static void main(final String[] args) throws Exception {
         // we want the JVM to think there is a security manager installed so that if internal policy decisions that would be based on the
         // presence of a security manager or lack thereof act as if there is a security manager present (e.g., DNS cache policy)
-        System.setSecurityManager(new SecurityManager() {
+        System.setSecurityManager(new SecurityManager() {//Michel:设置一个securityManager,以便基于这个的可以正常使用：https://blog.csdn.net/wangyangzhizhou/article/details/38497755
             @Override
-            public void checkPermission(Permission perm) {
+            public void checkPermission(Permission perm) {//Michel:设置为所有权限全开
                 // grant all permissions so that we can later set the security manager to the one that we want
             }
         });
@@ -90,14 +93,16 @@ class Elasticsearch extends EnvironmentAwareCommand {
     }
 
     static int main(final String[] args, final Elasticsearch elasticsearch, final Terminal terminal) throws Exception {
-        return elasticsearch.main(args, terminal);
+        return elasticsearch.main(args, terminal);//这里执行main其实是调用父类的方法，进行一些参数处理和环境设置，最终还是要执行execute
     }
 
     @Override
     protected void execute(Terminal terminal, OptionSet options, Environment env) throws UserException {
+        //step 1 未知参数拦截
         if (options.nonOptionArguments().isEmpty() == false) {
             throw new UserException(ExitCodes.USAGE, "Positional arguments not allowed, found " + options.nonOptionArguments());
         }
+        //step 2 Version 功能实现
         if (options.has(versionOption)) {
             final String versionOutput = String.format(
                     Locale.ROOT,
@@ -111,11 +116,12 @@ class Elasticsearch extends EnvironmentAwareCommand {
             terminal.println(versionOutput);
             return;
         }
-
+        //step 3 获取daemonize, pidFile, quiet参数
         final boolean daemonize = options.has(daemonizeOption);
         final Path pidFile = pidfileOption.value(options);
         final boolean quiet = options.has(quietOption);
 
+        //step 4 检查临时文件，一个错误的java.io.tmpdir会导致难以诊断的问题
         // a misconfigured java.io.tmpdir can cause hard-to-diagnose problems later, so reject it immediately
         try {
             env.validateTmpFile();
@@ -123,6 +129,7 @@ class Elasticsearch extends EnvironmentAwareCommand {
             throw new UserException(ExitCodes.CONFIG, e.getMessage());
         }
 
+        //step 5 使用本次获取的三个参数和父类生成的环境，初始化系统
         try {
             init(daemonize, pidFile, quiet, env);
         } catch (NodeValidationException e) {
@@ -130,6 +137,7 @@ class Elasticsearch extends EnvironmentAwareCommand {
         }
     }
 
+    //调用bootstrap的init方法进行初始化
     void init(final boolean daemonize, final Path pidFile, final boolean quiet, Environment initialEnv)
         throws NodeValidationException, UserException {
         try {

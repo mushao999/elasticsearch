@@ -23,6 +23,8 @@ package org.elasticsearch.cli;
  * A multi-command that is aware of logging. This class should be preferred over the base {@link MultiCommand} class for any CLI tools that
  * depend on core Elasticsearch as they could directly or indirectly touch classes that touch logging and as such logging needs to be
  * configured.
+ * Michel:multiCmd+log
+ * done
  */
 public abstract class LoggingAwareMultiCommand extends MultiCommand {
 

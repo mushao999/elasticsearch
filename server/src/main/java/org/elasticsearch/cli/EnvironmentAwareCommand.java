@@ -33,6 +33,11 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Michel:基于环境运行的cli命令抽象类定义
+ * done
+ */
+
 /** A cli command which requires an {@link org.elasticsearch.env.Environment} to use current paths and settings. */
 public abstract class EnvironmentAwareCommand extends Command {
 
@@ -45,7 +50,7 @@ public abstract class EnvironmentAwareCommand extends Command {
      * @param description the command description
      */
     public EnvironmentAwareCommand(final String description) {
-        this(description, CommandLoggingConfigurator::configureLoggingWithoutConfig);
+        this(description, CommandLoggingConfigurator::configureLoggingWithoutConfig);//Grammar:lambda表达式,用于替代单方法接口，不需要实现就可以使用
     }
 
     /**
@@ -60,6 +65,12 @@ public abstract class EnvironmentAwareCommand extends Command {
         this.settingOption = parser.accepts("E", "Configure a setting").withRequiredArg().ofType(KeyValuePair.class);
     }
 
+    /**
+     * 执行方法，获取命令行参数，获取系统环境变量，再调用子类的execute
+     * @param terminal
+     * @param options
+     * @throws Exception
+     */
     @Override
     protected void execute(Terminal terminal, OptionSet options) throws Exception {
         final Map<String, String> settings = new HashMap<>();

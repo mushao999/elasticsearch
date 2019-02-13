@@ -289,15 +289,18 @@ public abstract class Node implements Closeable {
              * node name. And it is important to get *that* as soon as possible
              * so that log lines can contain it.
              */
+            //michel:step 1 获取节点名称和节点id
+            //michel:step 1.1 生成nodeEnvironment,其实就是制定了从nodeId的使用（若未指定nodeName,则使用nodeId派生nodeName）
             boolean nodeNameExplicitlyDefined = NODE_NAME_SETTING.exists(tmpSettings);
             try {
                 Consumer<String> nodeIdConsumer = nodeNameExplicitlyDefined ?
-                        nodeId -> {} : nodeId -> registerDerivedNodeNameWithLogger(nodeIdToNodeName(nodeId));
+                        nodeId -> {} : nodeId -> registerDerivedNodeNameWithLogger(nodeIdToNodeName(nodeId));//michel:??既然后续明确使用使用id派生了名称，前面这个有设置有什么用？
                 nodeEnvironment = new NodeEnvironment(tmpSettings, environment, nodeIdConsumer);
                 resourcesToClose.add(nodeEnvironment);
             } catch (IOException ex) {
                 throw new IllegalStateException("Failed to create node environment", ex);
             }
+            //michel:step 2.2 明确指定则使用指定的nodeName, 未指定则使用nodeId派生
             if (nodeNameExplicitlyDefined) {
                 logger.info("node name [{}], node ID [{}]",
                         NODE_NAME_SETTING.get(tmpSettings), nodeEnvironment.nodeId());
@@ -310,7 +313,7 @@ public abstract class Node implements Closeable {
                         nodeEnvironment.nodeId(), NODE_NAME_SETTING.getKey());
             }
 
-
+            //michel:step 2 打印jvm相关信息
             final JvmInfo jvmInfo = JvmInfo.jvmInfo();
             logger.info(
                 "version[{}], pid[{}], build[{}/{}/{}/{}], OS[{}/{}/{}], JVM[{}/{}/{}/{}]",

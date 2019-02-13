@@ -21,6 +21,9 @@ package org.elasticsearch.cli;
 
 /**
  * POSIX exit codes.
+ * Michel:
+ * 退出码定义
+ * done
  */
 public class ExitCodes {
     public static final int OK = 0;

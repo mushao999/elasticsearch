@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Spawns native module controller processes if present. Will only work prior to a system call filter being installed.
+ * 启动本地module
  */
 final class Spawner implements Closeable {
 

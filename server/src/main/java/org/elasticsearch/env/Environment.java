@@ -57,6 +57,7 @@ public class Environment {
             new Setting<>("path.logs", "", Function.identity(), Property.NodeScope);
     public static final Setting<List<String>> PATH_REPO_SETTING =
         Setting.listSetting("path.repo", Collections.emptyList(), Function.identity(), Property.NodeScope);
+    //michel:这个配置项的目的是什么？即使底层使用了共享文件系统也应该对上层透明才对
     public static final Setting<String> PATH_SHARED_DATA_SETTING = Setting.simpleString("path.shared_data", Property.NodeScope);
     public static final Setting<String> PIDFILE_SETTING = Setting.simpleString("pidfile", Property.NodeScope);
 

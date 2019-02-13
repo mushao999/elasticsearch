@@ -22,6 +22,9 @@ package org.elasticsearch.bootstrap;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 
+/**Michel:启动配置封装类
+ * Done
+ */
 public final class BootstrapSettings {
 
     private BootstrapSettings() {

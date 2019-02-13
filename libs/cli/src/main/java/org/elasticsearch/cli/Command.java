@@ -32,6 +32,10 @@ import java.util.Arrays;
 
 /**
  * An action to execute within a cli.
+ * Michel:
+ * * 定义了可以在cli中执行的的action的抽象类
+ * 功能包括：help打印，输出内容控制，执行前函数，关闭钩子线程
+ * done
  */
 public abstract class Command implements Closeable {
 
@@ -59,7 +63,7 @@ public abstract class Command implements Closeable {
         this.beforeMain = beforeMain;
     }
 
-    private Thread shutdownHookThread;
+    private Thread shutdownHookThread;//Michel:关闭钩子使用jvm提供的函数来实现
 
     /** Parses options for this command from args and executes it. */
     public final int main(String[] args, Terminal terminal) throws Exception {

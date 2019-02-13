@@ -26,6 +26,8 @@ import java.util.Enumeration;
 
 /**
  * Exposes system startup information
+ * Michel:获取系统环境变量和Native参数
+ * done
  */
 @SuppressForbidden(reason = "exposes read-only view of system properties")
 public final class BootstrapInfo {

@@ -28,6 +28,11 @@ import java.io.IOError;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 
+/**
+ * Michel:未捕获异常处理handler
+ * 对于error类型的，打印错误日志，并停止，非error类型仅打印日志
+ * Done
+ */
 class ElasticsearchUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
     private static final Logger logger = Loggers.getLogger(ElasticsearchUncaughtExceptionHandler.class);
 

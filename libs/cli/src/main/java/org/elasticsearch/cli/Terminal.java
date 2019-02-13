@@ -28,6 +28,9 @@ import java.nio.charset.Charset;
 import java.util.Locale;
 
 /**
+ * Michel:
+ * cli输入和输出的封装类
+ * done
  * A Terminal wraps access to reading input and writing output for a cli.
  *
  * The available methods are similar to those of {@link Console}, with the ability
@@ -40,6 +43,7 @@ import java.util.Locale;
 public abstract class Terminal {
 
     /** The default terminal implementation, which will be a console if available, or stdout/stderr if not. */
+    /**默认使用控制台terminal，如果不支持则使用标准输入和输出*/
     public static final Terminal DEFAULT = ConsoleTerminal.isSupported() ? new ConsoleTerminal() : new SystemTerminal();
 
     /** Defines the available verbosity levels of messages to be printed. */
@@ -145,6 +149,9 @@ public abstract class Terminal {
         }
     }
 
+    /**
+     * 系统terminal
+     */
     private static class SystemTerminal extends Terminal {
 
         private static final PrintWriter WRITER = newWriter();

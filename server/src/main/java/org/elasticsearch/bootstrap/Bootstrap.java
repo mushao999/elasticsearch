@@ -17,6 +17,11 @@
  * under the License.
  */
 
+/*
+todo:
+(1)
+ */
+
 package org.elasticsearch.bootstrap;
 
 import org.apache.logging.log4j.Logger;
@@ -63,16 +68,20 @@ import java.util.concurrent.CountDownLatch;
 
 /**
  * Internal startup code.
+ * ES启动模块：单例模式
  */
 final class Bootstrap {
 
-    private static volatile Bootstrap INSTANCE;
-    private volatile Node node;
-    private final CountDownLatch keepAliveLatch = new CountDownLatch(1);
-    private final Thread keepAliveThread;
-    private final Spawner spawner = new Spawner();
+    private static volatile Bootstrap INSTANCE;//单例对象
+    private volatile Node node;//节点对象
+    private final CountDownLatch keepAliveLatch = new CountDownLatch(1);//keepAlive线程的栅栏
+    private final Thread keepAliveThread;//keepAlive线程
+    private final Spawner spawner = new Spawner();//todo://michelmu
 
-    /** creates a new instance */
+    /**
+     * //构造器只做了一件事，创建了一个keepalive线程
+     * todo：high keepalive线程的工作原理
+     */
     Bootstrap() {
         keepAliveThread = new Thread(new Runnable() {
             @Override
@@ -84,7 +93,7 @@ final class Bootstrap {
                 }
             }
         }, "elasticsearch[keepAlive/" + Version.CURRENT + "]");
-        keepAliveThread.setDaemon(false);
+        keepAliveThread.setDaemon(false);//当都是后台进程时会退出
         // keep this thread alive (non daemon thread) until we shutdown
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
@@ -94,26 +103,36 @@ final class Bootstrap {
         });
     }
 
-    /** initialize native resources */
+    /**
+     * initialize native resources
+     * 初始化本地资源
+     */
     public static void initializeNatives(Path tmpFile, boolean mlockAll, boolean systemCallFilter, boolean ctrlHandler) {
         final Logger logger = Loggers.getLogger(Bootstrap.class);
 
-        // check if the user is running as root, and bail
+        //step 1 check if the user is running as root, and bail
+        //小功能点1：对root权限运行进行拦截
+        // 不能以root权限运行原因分析：（1）会有一些外部脚本，如果权限过高会有问题
         if (Natives.definitelyRunningAsRoot()) {
             throw new RuntimeException("can not run elasticsearch as root");
         }
 
-        // enable system call filter
+        //step 2 enable system call filter
+        //系统调用过滤器，猜测应该是对系统调用做限制，对插件和脚本权限进行限制
         if (systemCallFilter) {
             Natives.tryInstallSystemCallFilter(tmpFile);
         }
 
-        // mlockall if requested
+        //step 3 mlockall if requested
+        //如果设置了配置选项就设置内存锁
+        //bootstrap.mlockall: true
+        //当设置bootstrap.mlockall: true时，启动es报警告Unknown mlockall error 0，因为linux系统默认能让进程锁住的内存为45k。
+        //解决方法：设置为无限制，linux命令：ulimit -l unlimited
         if (mlockAll) {
             if (Constants.WINDOWS) {
-               Natives.tryVirtualLock();
+                Natives.tryVirtualLock();
             } else {
-               Natives.tryMlockall();
+                Natives.tryMlockall();
             }
         }
 
@@ -158,6 +177,7 @@ final class Bootstrap {
         JvmInfo.jvmInfo();
     }
 
+    //初始化bootstrap
     private void setup(boolean addShutdownHook, Environment environment) throws BootstrapException {
         Settings settings = environment.settings();
 
@@ -168,10 +188,10 @@ final class Bootstrap {
         }
 
         initializeNatives(
-                environment.tmpFile(),
-                BootstrapSettings.MEMORY_LOCK_SETTING.get(settings),
-                BootstrapSettings.SYSTEM_CALL_FILTER_SETTING.get(settings),
-                BootstrapSettings.CTRLHANDLER_SETTING.get(settings));
+            environment.tmpFile(),
+            BootstrapSettings.MEMORY_LOCK_SETTING.get(settings),
+            BootstrapSettings.SYSTEM_CALL_FILTER_SETTING.get(settings),
+            BootstrapSettings.CTRLHANDLER_SETTING.get(settings));
 
         // initialize probes before the security manager is installed
         initializeProbes();
@@ -224,6 +244,13 @@ final class Bootstrap {
         };
     }
 
+    /**
+     * 获取加密配置 todo:low 后续了解
+     *
+     * @param initialEnv
+     * @return
+     * @throws BootstrapException
+     */
     static SecureSettings loadSecureSettings(Environment initialEnv) throws BootstrapException {
         final KeyStoreWrapper keystore;
         try {
@@ -247,12 +274,21 @@ final class Bootstrap {
         return keystore;
     }
 
+    /**
+     * 生成运行环境 todo:low 后续了解
+     * @param foreground
+     * @param pidFile
+     * @param secureSettings
+     * @param initialSettings
+     * @param configPath
+     * @return
+     */
     private static Environment createEnvironment(
-            final boolean foreground,
-            final Path pidFile,
-            final SecureSettings secureSettings,
-            final Settings initialSettings,
-            final Path configPath) {
+        final boolean foreground,
+        final Path pidFile,
+        final SecureSettings secureSettings,
+        final Settings initialSettings,
+        final Path configPath) {
         Terminal terminal = foreground ? Terminal.DEFAULT : null;
         Settings.Builder builder = Settings.builder();
         if (pidFile != null) {
@@ -265,11 +301,19 @@ final class Bootstrap {
         return InternalSettingsPreparer.prepareEnvironment(builder.build(), terminal, Collections.emptyMap(), configPath);
     }
 
+    /**
+     * 启动操作：启动节点，启动keepalive线程
+     * @throws NodeValidationException
+     */
     private void start() throws NodeValidationException {
         node.start();
         keepAliveThread.start();
     }
 
+    /**
+     * 关闭节点，停止keepalive线程
+     * @throws IOException
+     */
     static void stop() throws IOException {
         try {
             IOUtils.close(INSTANCE.node, INSTANCE.spawner);
@@ -280,21 +324,26 @@ final class Bootstrap {
 
     /**
      * This method is invoked by {@link Elasticsearch#main(String[])} to startup elasticsearch.
+     * 启动程序主要执行函数，由Elasticsearch的main方法直接调用
      */
     static void init(
-            final boolean foreground,
-            final Path pidFile,
-            final boolean quiet,
-            final Environment initialEnv) throws BootstrapException, NodeValidationException, UserException {
-        // force the class initializer for BootstrapInfo to run before
-        // the security manager is installed
+        final boolean foreground,
+        final Path pidFile,
+        final boolean quiet,
+        final Environment initialEnv) throws BootstrapException, NodeValidationException, UserException {
+        //step 1 force the class initializer for BootstrapInfo to run before
+        // the security manager is installed todo:这一句话的意思是什么，结合security manager了解
+        //获取一些系统环境变量(static代码块完成)，提供一些Natvive参数的查询函数（虽然这些参数还没有被设置）
         BootstrapInfo.init();
 
+        //step 2 调用构造函数，只干了一件事情，启动keepalive线程
         INSTANCE = new Bootstrap();
 
+        //step 3 获取加密配置，并生成环境
         final SecureSettings keystore = loadSecureSettings(initialEnv);
         final Environment environment = createEnvironment(foreground, pidFile, keystore, initialEnv.settings(), initialEnv.configFile());
 
+        //step 4 为日志服务配置节点名称和环境
         if (Node.NODE_NAME_SETTING.exists(environment.settings())) {
             LogConfigurator.setNodeName(Node.NODE_NAME_SETTING.get(environment.settings()));
         }
@@ -303,6 +352,7 @@ final class Bootstrap {
         } catch (IOException e) {
             throw new BootstrapException(e);
         }
+        //step 5 创建pid文件
         if (environment.pidFile() != null) {
             try {
                 PidFile.create(environment.pidFile(), true);
@@ -311,6 +361,7 @@ final class Bootstrap {
             }
         }
 
+        //step 6 启动实例
         final boolean closeStandardStreams = (foreground == false) || quiet;
         try {
             if (closeStandardStreams) {
@@ -396,6 +447,8 @@ final class Bootstrap {
         System.err.close();
     }
 
+    //@mushao: done
+    //通过查看包中的luncene版本和设置的是否一致来判断Lucene是否ok
     private static void checkLucene() {
         if (Version.CURRENT.luceneVersion.equals(org.apache.lucene.util.Version.LATEST) == false) {
             throw new AssertionError("Lucene version mismatch this version of Elasticsearch requires lucene version ["

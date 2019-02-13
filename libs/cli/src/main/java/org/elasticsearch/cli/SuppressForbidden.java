@@ -25,6 +25,10 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation to suppress forbidden-apis errors inside a whole class, a method, or a field.
+ * Michel:
+ * 屏蔽禁用api告警
+ * todo:以此了解注解的工作原理
+ * done
  */
 @Retention(RetentionPolicy.CLASS)
 @Target({ ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.METHOD, ElementType.TYPE })

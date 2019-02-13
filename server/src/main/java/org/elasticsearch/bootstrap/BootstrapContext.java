@@ -23,6 +23,8 @@ import org.elasticsearch.common.settings.Settings;
 
 /**
  * Context that is passed to every bootstrap check to make decisions on.
+ * Michel:启动检查上下文，包括配置和元数据,主要用于启动check
+ * Done
  */
 public class BootstrapContext {
     /**

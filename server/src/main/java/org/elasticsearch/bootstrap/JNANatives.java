@@ -34,6 +34,7 @@ import static org.elasticsearch.bootstrap.JNAKernel32Library.SizeT;
 /**
  * This class performs the actual work with JNA and library bindings to call native methods. It should only be used after
  * we are sure that the JNA classes are available to the JVM
+ * michelmu:使用jna和库来进行jna实际操作的类
  */
 class JNANatives {
 

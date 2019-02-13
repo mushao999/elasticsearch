@@ -26,6 +26,9 @@ import org.elasticsearch.common.settings.Settings;
 /**
  * Holder class for method to configure logging without Elasticsearch configuration files for use in CLI tools that will not read such
  * files.
+ * Michel:提供在无配置的情况下配置logging的方法
+ * todo:作为日志研究的入口
+ * done
  */
 final class CommandLoggingConfigurator {
 

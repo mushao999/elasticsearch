@@ -23,11 +23,15 @@ import java.util.Objects;
 
 /**
  * Encapsulates a bootstrap check.
+ * Michel:启动是否成功检查的封装类
+ * Done
  */
 public interface BootstrapCheck {
 
     /**
      * Encapsulate the result of a bootstrap check.
+     * Michel:启动检查结果的封装类
+     * Done
      */
     final class BootstrapCheckResult {
 
@@ -40,7 +44,7 @@ public interface BootstrapCheck {
         }
 
         public static BootstrapCheckResult failure(final String message) {
-            Objects.requireNonNull(message);
+            Objects.requireNonNull(message);//grammar:I like it
             return new BootstrapCheckResult(message);
         }
 
@@ -69,11 +73,13 @@ public interface BootstrapCheck {
      *
      * @param context the bootstrap context
      * @return the result of the bootstrap check
+     * Michel:检查是否启动成功
      */
     BootstrapCheckResult check(BootstrapContext context);
 
+    //Michel:是否强制检查
     default boolean alwaysEnforce() {
         return false;
-    }
+    }//grammar:jdk1.8 接口默认方法
 
 }

@@ -28,6 +28,7 @@ import java.nio.file.Path;
  * The Natives class is a wrapper class that checks if the classes necessary for calling native methods are available on
  * startup. If they are not available, this class will avoid calling code that loads these classes.
  */
+//封装层，对JNANatives进行封装
 final class Natives {
     /** no instantiation */
     private Natives() {}
@@ -60,6 +61,7 @@ final class Natives {
         JNANatives.tryMlockall();
     }
 
+    //判断用户是否以root权限在运行（调用JNANatives方法）
     static boolean definitelyRunningAsRoot() {
         if (!JNA_AVAILABLE) {
             logger.warn("cannot check if running as root because JNA is not available");
