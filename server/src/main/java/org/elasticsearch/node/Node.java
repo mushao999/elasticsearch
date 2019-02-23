@@ -185,12 +185,13 @@ import static java.util.stream.Collectors.toList;
 /**
  * A node represent a node within a cluster ({@code cluster.name}). The {@link #client()} can be used
  * in order to use a {@link Client} to perform actions/operations against the cluster.
+ * Michel:该类用于表示集群中的一个节点对象，client()方法返回一个可以对cluster执行动作的实体
  */
 public abstract class Node implements Closeable {
 
 
     public static final Setting<Boolean> WRITE_PORTS_FILE_SETTING =
-        Setting.boolSetting("node.portsfile", false, Property.NodeScope);
+        Setting.boolSetting("node.portsfile", false, Property.NodeScope);//Michel:用于控制是否将文档写入指定传输端口的日志目录中，主要是测试中使用
     public static final Setting<Boolean> NODE_DATA_SETTING = Setting.boolSetting("node.data", true, Property.NodeScope);
     public static final Setting<Boolean> NODE_MASTER_SETTING =
         Setting.boolSetting("node.master", true, Property.NodeScope);
@@ -256,11 +257,12 @@ public abstract class Node implements Closeable {
      * Constructs a node with the given settings.
      *
      * @param preparedSettings Base settings to configure the node with
+     * Michel:watcher测试时使用，自动生成一些配置参数
      */
     public Node(Settings preparedSettings) {
         this(InternalSettingsPreparer.prepareEnvironment(preparedSettings, null));
     }
-
+    //Michel:集群启动时真实调用的节点构造函数
     public Node(Environment environment) {
         this(environment, Collections.emptyList(), true);
     }
@@ -290,7 +292,7 @@ public abstract class Node implements Closeable {
              * so that log lines can contain it.
              */
             //michel:step 1 获取节点名称和节点id
-            //michel:step 1.1 生成nodeEnvironment,其实就是制定了从nodeId的使用（若未指定nodeName,则使用nodeId派生nodeName）
+            //michel:step 1.1 生成nodeEnvironment
             boolean nodeNameExplicitlyDefined = NODE_NAME_SETTING.exists(tmpSettings);
             try {
                 Consumer<String> nodeIdConsumer = nodeNameExplicitlyDefined ?
@@ -337,24 +339,27 @@ public abstract class Node implements Closeable {
                 logger.debug("using config [{}], data [{}], logs [{}], plugins [{}]",
                     environment.configFile(), Arrays.toString(environment.dataFiles()), environment.logsFile(), environment.pluginsFile());
             }
-
+            //Michel:启动插件服务
+            //Todo:需要展开研究pluginsService
             this.pluginsService = new PluginsService(tmpSettings, environment.configFile(), environment.modulesFile(), environment.pluginsFile(), classpathPlugins);
             this.settings = pluginsService.updatedSettings();
             localNodeFactory = new LocalNodeFactory(settings, nodeEnvironment.nodeId());
 
             // create the environment based on the finalized (processed) view of the settings
             // this is just to makes sure that people get the same settings, no matter where they ask them from
+            //Question:为什么要在这里检查一下
             this.environment = new Environment(this.settings, environment.configFile());
             Environment.assertEquivalent(environment, this.environment);
 
             final List<ExecutorBuilder<?>> executorBuilders = pluginsService.getExecutorBuilders(settings);
-
+            //Michel:启动ThreadPool
+            //Todo:需要展开研究ThreadPool
             final ThreadPool threadPool = new ThreadPool(settings, executorBuilders.toArray(new ExecutorBuilder[0]));
             resourcesToClose.add(() -> ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS));
             // adds the context to the DeprecationLogger so that it does not need to be injected everywhere
             DeprecationLogger.setThreadContext(threadPool.getThreadContext());
             resourcesToClose.add(() -> DeprecationLogger.removeThreadContext(threadPool.getThreadContext()));
-
+            //Question:为什么会有additionalSettings?
             final List<Setting<?>> additionalSettings = new ArrayList<>(pluginsService.getPluginSettings());
             final List<String> additionalSettingsFilter = new ArrayList<>(pluginsService.getPluginSettingsFilter());
             for (final ExecutorBuilder<?> builder : threadPool.builders()) {

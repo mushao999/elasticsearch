@@ -26,6 +26,7 @@ import java.lang.annotation.Target;
 /**
  * Annotation to suppress forbidden-apis errors inside a whole class, a method, or a field.
  */
+//Grammar: Annotation的使用:此处只是annotation的定义，其具体使用在某个jar包中
 @Retention(RetentionPolicy.CLASS)
 @Target({ ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.METHOD, ElementType.TYPE })
 public @interface SuppressForbidden {

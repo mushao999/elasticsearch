@@ -40,6 +40,7 @@ import java.util.function.Supplier;
 
 /**
  * Client that executes actions on the local node.
+ * Michel:对本地节点执行操作的类
  */
 public class NodeClient extends AbstractClient {
 
@@ -48,6 +49,8 @@ public class NodeClient extends AbstractClient {
      * The id of the local {@link DiscoveryNode}. Useful for generating task ids from tasks returned by
      * {@link #executeLocally(GenericAction, ActionRequest, TaskListener)}.
      */
+    //Grammar:函数式接口，只能有一个抽象方法的接口，在赋值时可以直接使用lamda表达式，接口中可以额外定义Default方法，静态方法，Object方法，
+    // 使用@functionalinterface来进行语法检查,参考：https://www.cnblogs.com/chenpi/p/5890144.html
     private Supplier<String> localNodeId;
     private RemoteClusterService remoteClusterService;
 

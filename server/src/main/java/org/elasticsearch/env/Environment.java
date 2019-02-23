@@ -46,10 +46,12 @@ import java.util.function.Function;
 @SuppressForbidden(reason = "configures paths for the system")
 // TODO: move PathUtils to be package-private here instead of
 // public+forbidden api!
+//Michel:ES运行环境类，保存运行中用到的各种配置，路径等,并在初始化中加载这些
+//Done
 public class Environment {
 
     private static final Path[] EMPTY_PATH_ARRAY = new Path[0];
-
+    //Michel:在启动时，通过elasticsearch-env脚本生成ES_HOME变量，然后作为启动参数传入
     public static final Setting<String> PATH_HOME_SETTING = Setting.simpleString("path.home", Property.NodeScope);
     public static final Setting<List<String>> PATH_DATA_SETTING =
             Setting.listSetting("path.data", Collections.emptyList(), Function.identity(), Property.NodeScope);
@@ -57,7 +59,7 @@ public class Environment {
             new Setting<>("path.logs", "", Function.identity(), Property.NodeScope);
     public static final Setting<List<String>> PATH_REPO_SETTING =
         Setting.listSetting("path.repo", Collections.emptyList(), Function.identity(), Property.NodeScope);
-    //michel:这个配置项的目的是什么？即使底层使用了共享文件系统也应该对上层透明才对
+    //Question:这个配置项的目的是什么？即使底层使用了共享文件系统也应该对上层透明才对
     public static final Setting<String> PATH_SHARED_DATA_SETTING = Setting.simpleString("path.shared_data", Property.NodeScope);
     public static final Setting<String> PIDFILE_SETTING = Setting.simpleString("pidfile", Property.NodeScope);
 
@@ -117,6 +119,7 @@ public class Environment {
         List<String> dataPaths = PATH_DATA_SETTING.get(settings);
         final ClusterName clusterName = ClusterName.CLUSTER_NAME_SETTING.get(settings);
         if (DiscoveryNode.nodeRequiresLocalStorage(settings)) {
+            //Michel:使用指定的配置目录，否则就使用ES根目录下的data
             if (dataPaths.isEmpty() == false) {
                 dataFiles = new Path[dataPaths.size()];
                 dataWithClusterFiles = new Path[dataPaths.size()];
