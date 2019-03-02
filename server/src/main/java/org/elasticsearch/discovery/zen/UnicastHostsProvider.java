@@ -25,6 +25,7 @@ import java.util.List;
 
 /**
  * A pluggable provider of the list of unicast hosts to use for unicast discovery.
+ * Michel:插件化的单播hosts提供器，用于单播发现服务
  */
 public interface UnicastHostsProvider {
 

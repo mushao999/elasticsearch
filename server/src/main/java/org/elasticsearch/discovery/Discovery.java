@@ -34,6 +34,8 @@ import java.io.IOException;
  * state to all nodes, electing a master of the cluster that raises cluster state change
  * events.
  */
+//Michel:抽象了所有执行Discovery的对象
+//Done
 public interface Discovery extends LifecycleComponent {
 
     /**

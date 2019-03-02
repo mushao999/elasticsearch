@@ -86,6 +86,7 @@ public class ElectMasterService extends AbstractComponent {
          *
          * @return -1 if c1 is a batter candidate, 1 if c2.
          */
+        //Michle: 优先比较谁持有的节点状态最新，如果相同则比较ID，ID小的为Master
         public static int compare(MasterCandidate c1, MasterCandidate c2) {
             // we explicitly swap c1 and c2 here. the code expects "better" is lower in a sorted
             // list, so if c2 has a higher cluster state version, it needs to come first.
@@ -121,6 +122,7 @@ public class ElectMasterService extends AbstractComponent {
         return count;
     }
 
+    //Michel: 当前候选主节点数与discovery.zen.minimum_master_nodes比较
     public boolean hasEnoughCandidates(Collection<MasterCandidate> candidates) {
         if (candidates.isEmpty()) {
             return false;
@@ -145,6 +147,7 @@ public class ElectMasterService extends AbstractComponent {
     }
 
     /** selects the best active master to join, where multiple are discovered */
+    //Michel:选择节点ID小的作为主节点
     public DiscoveryNode tieBreakActiveMasters(Collection<DiscoveryNode> activeMasters) {
         return activeMasters.stream().min(ElectMasterService::compareNodes).get();
     }
@@ -215,6 +218,7 @@ public class ElectMasterService extends AbstractComponent {
     }
 
     /** master nodes go before other nodes, with a secondary sort by id **/
+    //Michel:节点比较，先看是否为master，如果都为master则比较ID
      private static int compareNodes(DiscoveryNode o1, DiscoveryNode o2) {
         if (o1.isMasterNode() && !o2.isMasterNode()) {
             return -1;

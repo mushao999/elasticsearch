@@ -35,6 +35,8 @@ import java.net.UnknownHostException;
 
 /**
  * A transport address used for IP socket address (wraps {@link java.net.InetSocketAddress}).
+ * java.net.InetSocketAddress中用到的传输层地址类：ip+port
+ * 提供直接设置，从stream中设置或获取等方法
  */
 public final class TransportAddress implements Writeable, ToXContentFragment {
 
@@ -42,7 +44,7 @@ public final class TransportAddress implements Writeable, ToXContentFragment {
      * A <a href="https://en.wikipedia.org/wiki/0.0.0.0">non-routeable v4 meta transport address</a> that can be used for
      * testing or in scenarios where targets should be marked as non-applicable from a transport perspective.
      */
-    public static final InetAddress META_ADDRESS;
+    public static final InetAddress META_ADDRESS;//测试或不使用transport功能时使用该地址
 
     static {
         try {
@@ -51,7 +53,7 @@ public final class TransportAddress implements Writeable, ToXContentFragment {
             throw new AssertionError(e);
         }
     }
-
+    //Michel:这一块需要注意，InetAddress代表一个IP， InetSocketAddress代表一个IP+PORT
     private final InetSocketAddress address;
 
     public TransportAddress(InetAddress address, int port) {
@@ -79,6 +81,7 @@ public final class TransportAddress implements Writeable, ToXContentFragment {
      * Read from a stream and use the {@code hostString} when creating the InetAddress if the input comes from a version on or prior
      * {@link Version#V_5_0_2} as the hostString was not serialized
      */
+    //TODO：从StreamInput解析地址，了解StreamInpu是干什么用的
     public TransportAddress(StreamInput in, @Nullable String hostString) throws IOException {
         if (in.getVersion().before(Version.V_6_0_0_alpha1)) { // bwc layer for 5.x where we had more than one transport address
             final short i = in.readShort();
@@ -102,6 +105,7 @@ public final class TransportAddress implements Writeable, ToXContentFragment {
     }
 
     @Override
+    //TODO:写入到StreamOutput, 了解StreamOutput是干什么用的
     public void writeTo(StreamOutput out) throws IOException {
         if (out.getVersion().before(Version.V_6_0_0_alpha1)) {
             out.writeShort((short)1); // this maps to InetSocketTransportAddress in 5.x
@@ -159,6 +163,7 @@ public final class TransportAddress implements Writeable, ToXContentFragment {
     }
 
     @Override
+    //TODO: 了解XContent
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         return builder.value(toString());
     }

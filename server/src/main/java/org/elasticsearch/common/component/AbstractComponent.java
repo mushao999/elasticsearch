@@ -24,7 +24,7 @@ import org.apache.logging.log4j.Logger;
 import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
-
+//Michel:抽象组件类，保存了一些logger和setting
 public abstract class AbstractComponent {
 
     protected final Logger logger;

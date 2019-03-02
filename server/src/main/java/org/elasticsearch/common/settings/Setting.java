@@ -209,6 +209,7 @@ public class Setting<T> implements ToXContentObject {
      * @param defaultValue a default value.
      * @param parser a parser that parses the string rep into a complex datatype.
      * @param properties properties for this setting like scope, filtering...
+     * Michel：创建一个Setting实例，key为键，defaultValue为默认值，parser为转换函数，该设置的一些属性如作用域等
      */
     public Setting(String key, String defaultValue, Function<String, T> parser, Property... properties) {
         this(key, s -> defaultValue, parser, properties);

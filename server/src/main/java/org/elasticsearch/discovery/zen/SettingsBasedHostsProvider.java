@@ -37,13 +37,15 @@ import static java.util.Collections.emptyList;
  *
  * An example unicast hosts setting might look as follows:
  * [67.81.244.10, 67.81.244.11:9305, 67.81.244.15:9400]
+ * Michel:基于配置的host提供器
  */
 public class SettingsBasedHostsProvider extends AbstractComponent implements UnicastHostsProvider {
-
+    //Michel:从配置项读取discovery.zen.pinng.unicast.hosts 获取host
     public static final Setting<List<String>> DISCOVERY_ZEN_PING_UNICAST_HOSTS_SETTING =
         Setting.listSetting("discovery.zen.ping.unicast.hosts", emptyList(), Function.identity(), Setting.Property.NodeScope);
 
     // these limits are per-address
+    //Question:本地端口可以有5个，远程端口最多只能一个?
     public static final int LIMIT_FOREIGN_PORTS_COUNT = 1;
     public static final int LIMIT_LOCAL_PORTS_COUNT = 5;
 
@@ -60,6 +62,7 @@ public class SettingsBasedHostsProvider extends AbstractComponent implements Uni
             limitPortCounts = LIMIT_FOREIGN_PORTS_COUNT;
         } else {
             // if unicast hosts are not specified, fill with simple defaults on the local machine
+            // 如果没有配置hosts则返回本机地址
             configuredHosts = transportService.getLocalAddresses();
             limitPortCounts = LIMIT_LOCAL_PORTS_COUNT;
         }

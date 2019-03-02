@@ -243,6 +243,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         return new UnicastZenPing(settings, threadPool, transportService, hostsProvider, this);
     }
 
+    //Grammar:如果父类中有当前类实现的接口中的方法，也算当前类已经实现了该接口的方法
     @Override
     protected void doStart() {
         DiscoveryNode localNode = transportService.getLocalNode();
@@ -444,7 +445,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
             logger.trace("thread is no longer in currentJoinThread. Stopping.");
             return;
         }
-
+        //Michel: 如果当前节点为主节点则等待被选举
         if (transportService.getLocalNode().equals(masterNode)) {
             final int requiredJoins = Math.max(0, electMaster.minimumMasterNodes() - 1); // we count as one
             logger.debug("elected as master, waiting for incoming joins ([{}] needed)", requiredJoins);
@@ -465,24 +466,23 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
                             }
                         }
                     }
-
             );
-        } else {
+        } else {//Michel: 如果其他节点为主节点则向该节点发送加入请求
             // process any incoming joins (they will fail because we are not the master)
             nodeJoinController.stopElectionContext(masterNode + " elected");
 
             // send join request
             final boolean success = joinElectedMaster(masterNode);
-
+            //Michel:加锁原因？markThreadAsDoneAndStartNew和stopRunningThreadAndRejoin的区别
             synchronized (stateMutex) {
                 if (success) {
                     DiscoveryNode currentMasterNode = this.clusterState().getNodes().getMasterNode();
-                    if (currentMasterNode == null) {
+                    if (currentMasterNode == null) {//Michel:加入成功了，但是获取主节点却为空，重新开始开始加入
                         // Post 1.3.0, the master should publish a new cluster state before acking our join request. we now should have
                         // a valid master.
                         logger.debug("no master node is set, despite of join request completing. retrying pings.");
                         joinThreadControl.markThreadAsDoneAndStartNew(currentThread);
-                    } else if (currentMasterNode.equals(masterNode) == false) {
+                    } else if (currentMasterNode.equals(masterNode) == false) {//最后加入的时候，主节点切换，则重新发起加入集群流程
                         // update cluster state
                         joinThreadControl.stopRunningThreadAndRejoin("master_switched_while_finalizing_join");
                     }
@@ -883,6 +883,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
 
     private DiscoveryNode findMaster() {
         logger.trace("starting to ping");
+        //Michel: Step 1 ping所有的节点
         List<ZenPing.PingResponse> fullPingResponses = pingAndWait(pingTimeout).toList();
         if (fullPingResponses == null) {
             logger.trace("No full ping responses");
@@ -899,9 +900,8 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
             }
             logger.trace("full ping responses:{}", sb);
         }
-
+        //Michel: step 2 将自己加入可ping通的节点列表中
         final DiscoveryNode localNode = transportService.getLocalNode();
-
         // add our selves
         assert fullPingResponses.stream().map(ZenPing.PingResponse::node)
             .filter(n -> n.equals(localNode)).findAny().isPresent() == false;
@@ -909,8 +909,9 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         fullPingResponses.add(new ZenPing.PingResponse(localNode, null, this.clusterState()));
 
         // filter responses
+        //Michel：step 3 如果开启了IgnoreNonMasters，则过滤非Master Ping结果
         final List<ZenPing.PingResponse> pingResponses = filterPingResponses(fullPingResponses, masterElectionIgnoreNonMasters, logger);
-
+        //Michel: step 4 获取当前存活的主节点
         List<DiscoveryNode> activeMasters = new ArrayList<>();
         for (ZenPing.PingResponse pingResponse : pingResponses) {
             // We can't include the local node in pingMasters list, otherwise we may up electing ourselves without
@@ -921,6 +922,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         }
 
         // nodes discovered during pinging
+        //Michel: step 5 获取候选主节点
         List<ElectMasterService.MasterCandidate> masterCandidates = new ArrayList<>();
         for (ZenPing.PingResponse pingResponse : pingResponses) {
             if (pingResponse.node().isMasterNode()) {
@@ -928,9 +930,9 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
             }
         }
 
-        if (activeMasters.isEmpty()) {
-            if (electMaster.hasEnoughCandidates(masterCandidates)) {
-                final ElectMasterService.MasterCandidate winner = electMaster.electMaster(masterCandidates);
+        if (activeMasters.isEmpty()) {//没有活动的主节点则开始选举
+            if (electMaster.hasEnoughCandidates(masterCandidates)) {//是否有足够的候选主节点
+                final ElectMasterService.MasterCandidate winner = electMaster.electMaster(masterCandidates);//选举主节点
                 logger.trace("candidate {} won election", winner);
                 return winner.getNode();
             } else {
@@ -939,15 +941,18 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
                             masterCandidates, electMaster.minimumMasterNodes());
                 return null;
             }
-        } else {
+        } else {//有活动的主节点，则从活动的主节点中选择节点ID最小的
             assert !activeMasters.contains(localNode) : "local node should never be elected as master when other nodes indicate an active master";
             // lets tie break between discovered nodes
+            //Michel:选择节点ID小的节点作为主节点（防止出现多个存活主节点的情况）
+            //Question:这个情况会发生吗？
             return electMaster.tieBreakActiveMasters(activeMasters);
         }
     }
 
     static List<ZenPing.PingResponse> filterPingResponses(List<ZenPing.PingResponse> fullPingResponses, boolean masterElectionIgnoreNonMasters, Logger logger) {
         List<ZenPing.PingResponse> pingResponses;
+        //Michel:如果开启了忽略非Master Ping的配置，则过滤非Master
         if (masterElectionIgnoreNonMasters) {
             pingResponses = fullPingResponses.stream().filter(ping -> ping.node().isMasterNode()).collect(Collectors.toList());
         } else {
@@ -1204,24 +1209,27 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
      * This is important to make sure that the background joining process is always in sync with any cluster state updates
      * like master loss, failure to join, received cluster state while joining etc.
      */
+    //Michel:节点加入集群进程控制类
     private class JoinThreadControl {
-
-        private final AtomicBoolean running = new AtomicBoolean(false);
-        private final AtomicReference<Thread> currentJoinThread = new AtomicReference<>();
+        private final AtomicBoolean running = new AtomicBoolean(false);//Michel:控制开关
+        private final AtomicReference<Thread> currentJoinThread = new AtomicReference<>();//Michel:加入集群进程实体
 
         /** returns true if join thread control is started and there is currently an active join thread */
+        //Michel:检测当前进程是否正常运行
         public boolean joinThreadActive() {
             Thread currentThread = currentJoinThread.get();
             return running.get() && currentThread != null && currentThread.isAlive();
         }
 
         /** returns true if join thread control is started and the supplied thread is the currently active joinThread */
+        //Michel:判断加入进程是否已经启动，且是否为指定的进程
         public boolean joinThreadActive(Thread joinThread) {
             return running.get() && joinThread.equals(currentJoinThread.get());
         }
 
         /** cleans any running joining thread and calls {@link #rejoin} */
         public void stopRunningThreadAndRejoin(String reason) {
+            //Grammar:使用holdsLock来判断是否持有锁
             assert Thread.holdsLock(stateMutex);
             currentJoinThread.set(null);
             rejoin(reason);
@@ -1230,9 +1238,11 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         /** starts a new joining thread if there is no currently active one and join thread controlling is started */
         public void startNewThreadIfNotRunning() {
             assert Thread.holdsLock(stateMutex);
+            //Michel:存活则直接返回
             if (joinThreadActive()) {
                 return;
             }
+            //Todo: 了解es threadpool的实现
             threadPool.generic().execute(new Runnable() {
                 @Override
                 public void run() {

@@ -51,6 +51,7 @@ import org.elasticsearch.transport.TransportService;
  * }
  * }</pre>
  */
+//Michel:节点发现插件接口定义
 public interface DiscoveryPlugin {
 
     /**
@@ -67,6 +68,7 @@ public interface DiscoveryPlugin {
      * @param clusterSettings Use to get cluster settings
      * @param hostsProvider Use to find configured hosts which should be pinged for initial discovery
      */
+    //Michel:获取节点发现方式
     default Map<String, Supplier<Discovery>> getDiscoveryTypes(ThreadPool threadPool, TransportService transportService,
                                                                NamedWriteableRegistry namedWriteableRegistry,
                                                                MasterService masterService,
@@ -105,6 +107,7 @@ public interface DiscoveryPlugin {
      *                         of a {@link org.elasticsearch.cluster.node.DiscoveryNode}
      * @param networkService Use to find the publish host address of the current node
      */
+    //Michel:获取节点Host提供器
     default Map<String, Supplier<UnicastHostsProvider>> getZenHostsProviders(TransportService transportService,
                                                                              NetworkService networkService) {
         return Collections.emptyMap();
@@ -115,5 +118,6 @@ public interface DiscoveryPlugin {
      * join attempt but might be called multiple times during the lifetime of a node. Validators are expected to throw a
      * {@link IllegalStateException} if the node and the cluster-state are incompatible.
      */
+    //Michel: 加入状态校验器：如果为null就不执行，如果不为null则每次节点尝试加入集群就执行一次
     default BiConsumer<DiscoveryNode,ClusterState> getJoinValidator() { return null; }
 }
