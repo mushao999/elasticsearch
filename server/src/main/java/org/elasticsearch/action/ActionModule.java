@@ -527,13 +527,17 @@ public class ActionModule extends AbstractModule {
             Collections.unmodifiableSet(actionPlugins.stream().flatMap(p -> p.getActionFilters().stream()).collect(Collectors.toSet())));
     }
 
+    //Michel:初始化Restful handler
+    //Important:new 一个Action时会在其构造器中将该action注册
+    //Important:此处还通过registerHandler收集了所有的cat action，增加了cat api的描述接口RestCatAction
     public void initRestHandlers(Supplier<DiscoveryNodes> nodesInCluster) {
-        List<AbstractCatAction> catActions = new ArrayList<>();
-        Consumer<RestHandler> registerHandler = a -> {
+        List<AbstractCatAction> catActions = new ArrayList<>();//Michel:记录所有cat action的容器
+        Consumer<RestHandler> registerHandler = a -> {//Michel:定义过滤函数，将cat action放入容器
             if (a instanceof AbstractCatAction) {
                 catActions.add((AbstractCatAction) a);
             }
         };
+        //Michel:初始化并构建所有的rest action，顺便将所有的cat action加入容器
         registerHandler.accept(new RestMainAction(settings, restController));
         registerHandler.accept(new RestNodesInfoAction(settings, restController, settingsFilter));
         registerHandler.accept(new RestRemoteClusterInfoAction(settings, restController));
@@ -659,12 +663,14 @@ public class ActionModule extends AbstractModule {
         registerHandler.accept(new RestRepositoriesAction(settings, restController));
         registerHandler.accept(new RestSnapshotAction(settings, restController));
         registerHandler.accept(new RestTemplatesAction(settings, restController));
+        //Important:如果想自定义rest接口，可以参考此处
         for (ActionPlugin plugin : actionPlugins) {
             for (RestHandler handler : plugin.getRestHandlers(settings, restController, clusterSettings, indexScopedSettings,
                     settingsFilter, indexNameExpressionResolver, nodesInCluster)) {
                 registerHandler.accept(handler);
             }
         }
+        //Michel:根据汇总的cat action，生成cat action的help接口RestCatAction
         registerHandler.accept(new RestCatAction(settings, restController, catActions));
     }
 
