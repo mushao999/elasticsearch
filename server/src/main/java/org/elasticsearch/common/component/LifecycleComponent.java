@@ -16,6 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/* Michel:定义一个拥有生命周期的组件
+ * 该生命周期组件支持开始，结束，获取生命周期状态，添加或移除生命周期变化
+ * 该生命周期继承自Releasable接口，需要实现close接口，用于自动释放资源（与try-with-resource联用）
+ * Done
+ */
 
 package org.elasticsearch.common.component;
 

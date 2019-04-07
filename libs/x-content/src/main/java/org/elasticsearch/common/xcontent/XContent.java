@@ -30,6 +30,7 @@ import java.util.Set;
 
 /**
  * A generic abstraction on top of handling content, inspired by JSON and pull parsing.
+ * Michel:处理上下文的一个抽象类
  */
 public interface XContent {
 
@@ -49,6 +50,7 @@ public interface XContent {
      * the corresponding custom duplicate check code.
      *
      */
+    //Michel:xcontent中是否允许有重复值
     static boolean isStrictDuplicateDetectionEnabled() {
         // Don't allow duplicate keys in JSON content by default but let the user opt out
         return Booleans.parseBoolean(System.getProperty("es.xcontent.strict_duplicate_detection", "true"), true);

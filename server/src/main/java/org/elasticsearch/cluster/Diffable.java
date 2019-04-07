@@ -25,11 +25,13 @@ import org.elasticsearch.common.io.stream.Writeable;
 /**
  * Cluster state part, changes in which can be serialized
  */
+//Michel: 表示一个可以比较不同的对象（看注释主要用于设定集群状态是可比较不同的）
 public interface Diffable<T> extends Writeable {
 
     /**
      * Returns serializable object representing differences between this and previousState
      */
+    //Michel:与previousState对象比较不同
     Diff<T> diff(T previousState);
 
 }

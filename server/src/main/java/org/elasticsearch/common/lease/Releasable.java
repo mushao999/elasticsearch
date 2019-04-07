@@ -26,6 +26,8 @@ import java.io.Closeable;
 /**
  * Specialization of {@link AutoCloseable} that may only throw an {@link ElasticsearchException}.
  */
+//Michel：重写Closeable接口，将其中的IOException移出（实现这样的接口是为了配合java的try-with-resource实现资源的自动清理）
+//Done
 public interface Releasable extends Closeable {
 
     @Override

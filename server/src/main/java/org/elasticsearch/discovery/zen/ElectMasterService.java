@@ -86,7 +86,7 @@ public class ElectMasterService extends AbstractComponent {
          *
          * @return -1 if c1 is a batter candidate, 1 if c2.
          */
-        //Michle: 优先比较谁持有的节点状态最新，如果相同则比较ID，ID小的为Master
+        //Michel: 优先比较谁持有的节点状态最新，如果相同则比较ID，ID小的为Master
         public static int compare(MasterCandidate c1, MasterCandidate c2) {
             // we explicitly swap c1 and c2 here. the code expects "better" is lower in a sorted
             // list, so if c2 has a higher cluster state version, it needs to come first.
@@ -130,6 +130,7 @@ public class ElectMasterService extends AbstractComponent {
         if (minimumMasterNodes < 1) {
             return true;
         }
+        //Michel：正常情况下不会出现重复的情况，此处应该是防御
         assert candidates.stream().map(MasterCandidate::getNode).collect(Collectors.toSet()).size() == candidates.size() :
             "duplicates ahead: " + candidates;
         return candidates.size() >= minimumMasterNodes;
@@ -139,6 +140,9 @@ public class ElectMasterService extends AbstractComponent {
      * Elects a new master out of the possible nodes, returning it. Returns {@code null}
      * if no master has been elected.
      */
+    //Michel:按照比较规则选出主节点
+    //Michel: 三层比较，持有最新的集群状态，是主节点，id小
+    //Important: 候选主节点选主核心代码
     public MasterCandidate electMaster(Collection<MasterCandidate> candidates) {
         assert hasEnoughCandidates(candidates);
         List<MasterCandidate> sortedCandidates = new ArrayList<>(candidates);
@@ -218,7 +222,8 @@ public class ElectMasterService extends AbstractComponent {
     }
 
     /** master nodes go before other nodes, with a secondary sort by id **/
-    //Michel:节点比较，先看是否为master，如果都为master则比较ID
+    //Michel:节点比较，先看是否为master，如果都为master则比较ID，因为是小的优胜，所以认为masterNode小于非masterNode
+    //Todo:如果两个全为数据节点，则数据节点会被选为主，不过在选举中使用的已经确定只会有主节点了
      private static int compareNodes(DiscoveryNode o1, DiscoveryNode o2) {
         if (o1.isMasterNode() && !o2.isMasterNode()) {
             return -1;

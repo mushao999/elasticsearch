@@ -39,8 +39,15 @@ import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
  * A base class for {@link MasterFaultDetection} &amp; {@link NodesFaultDetection},
  * making sure both use the same setting.
  */
+//Michel:错误发现抽象类
+/*
+* Michel:错误发现抽象类
+* 1. 初始化时调用TransportService注册一个listener，该listener会监听连接断开事件，并触发当前类的处理方法
+* 2. 当前类实现了Closeable方法，在关闭时会从TransportService中移出注册的listener
+ */
 public abstract class FaultDetection extends AbstractComponent implements Closeable {
 
+    //Michel:一些配置
     public static final Setting<Boolean> CONNECT_ON_NETWORK_DISCONNECT_SETTING =
         Setting.boolSetting("discovery.zen.fd.connect_on_network_disconnect", false, Property.NodeScope);
     public static final Setting<TimeValue> PING_INTERVAL_SETTING =
@@ -78,7 +85,7 @@ public abstract class FaultDetection extends AbstractComponent implements Closea
         this.registerConnectionListener = REGISTER_CONNECTION_LISTENER_SETTING.get(settings);
 
         this.connectionListener = new FDConnectionListener();
-        if (registerConnectionListener) {
+        if (registerConnectionListener) {//Michel:测试中使用的判断，实际中应该一直为true
             transportService.addConnectionListener(connectionListener);
         }
     }
@@ -93,6 +100,7 @@ public abstract class FaultDetection extends AbstractComponent implements Closea
      */
     abstract void handleTransportDisconnect(DiscoveryNode node);
 
+    //Michel:该listener的作用是当节点离开时，触发类的handleTransportDisconnect方法
     private class FDConnectionListener implements TransportConnectionListener {
         @Override
         public void onNodeDisconnected(DiscoveryNode node) {

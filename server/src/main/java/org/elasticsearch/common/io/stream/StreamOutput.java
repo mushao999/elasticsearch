@@ -247,10 +247,11 @@ public abstract class StreamOutput extends OutputStream {
      * will always use all 5 bytes and are therefore better serialized
      * using {@link #writeInt}
      */
+    //Algorithm:变长编码方式，每七位前面加一个标志位表示是否结束
     public void writeVInt(int i) throws IOException {
-        while ((i & ~0x7F) != 0) {
-            writeByte((byte) ((i & 0x7f) | 0x80));
-            i >>>= 7;
+        while ((i & ~0x7F) != 0) {//移除末尾七位后是否还有数字（即高位是否还有需要处理的数字）
+            writeByte((byte) ((i & 0x7f) | 0x80));//获取末尾七位，并组成一个新八位，符号位置为1
+            i >>>= 7;//处理下一个七位
         }
         writeByte((byte) i);
     }

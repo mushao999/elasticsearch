@@ -186,6 +186,7 @@ import static java.util.stream.Collectors.toList;
  * A node represent a node within a cluster ({@code cluster.name}). The {@link #client()} can be used
  * in order to use a {@link Client} to perform actions/operations against the cluster.
  * Michel:该类用于表示集群中的一个节点对象，client()方法返回一个可以对cluster执行动作的实体
+ * Structure: 节点类
  */
 public abstract class Node implements Closeable {
 

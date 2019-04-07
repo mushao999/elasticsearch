@@ -79,6 +79,7 @@ import static org.elasticsearch.common.settings.Setting.intSetting;
 import static org.elasticsearch.common.settings.Setting.listSetting;
 import static org.elasticsearch.common.settings.Setting.timeSetting;
 
+//Michel:https://github.com/mushao999/elasticsearch_note/blob/master/server/elasticsearch/transport/TransportService.md
 public class TransportService extends AbstractLifecycleComponent implements TransportMessageListener, TransportConnectionListener {
 
     public static final Setting<Integer> CONNECTIONS_PER_NODE_RECOVERY =

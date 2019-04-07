@@ -41,6 +41,7 @@ import java.util.function.Predicate;
 
 /**
  * A discovery node represents a node that is part of the cluster.
+ * Michel:集群中的一个可用节点实体
  */
 public class DiscoveryNode implements Writeable, ToXContentFragment {
 

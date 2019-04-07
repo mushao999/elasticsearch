@@ -23,6 +23,8 @@ package org.elasticsearch.common.io.stream;
  * A {@link Writeable} object identified by its name.
  * To be used for arbitrary serializable objects (e.g. queries); when reading them, their name tells
  * which specific object needs to be created.
+ * Michel:一个可以获取名称的Writeable对象
+ * Michel:Writeable对象是指可以写入一个OutputStream或者从一个InputStream中读取的对象
  */
 public interface NamedWriteable extends Writeable {
 

@@ -52,10 +52,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * A fault detection that pings the master periodically to see if its alive.
  */
+//Michel:主节点异常检测：周期性地ping master节点，看是否存活
 public class MasterFaultDetection extends FaultDetection {
 
     public static final String MASTER_PING_ACTION_NAME = "internal:discovery/zen/fd/master_ping";
-
+    //Michel:供给外部注册的Listener,监听当前类发现的主节点异常事件
     public interface Listener {
 
         /** called when pinging the master failed, like a timeout, transport disconnects etc */
@@ -65,17 +66,19 @@ public class MasterFaultDetection extends FaultDetection {
 
     private final MasterService masterService;
     private final java.util.function.Supplier<ClusterState> clusterStateSupplier;
-    private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
+    //Grammar:CopyOnWrite容器：在写的时候复制一份出来，写会加锁，同一个时刻只有一个可以进行写操作，但是读操作不受影响
+    //适合于读多写少的场景，元素不多的场景（因此会拷贝），对实时性要求不高的（整体写入完才会修改指针）：https://juejin.im/post/5aaa2ba8f265da239530b69e
+    private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();//Michel:该类可以注册多个listener
 
     private volatile MasterPinger masterPinger;
 
-    private final Object masterNodeMutex = new Object();
+    private final Object masterNodeMutex = new Object();//Michel:同步锁
 
     private volatile DiscoveryNode masterNode;
 
     private volatile int retryCount;
 
-    private final AtomicBoolean notifiedMasterFailure = new AtomicBoolean();
+    private final AtomicBoolean notifiedMasterFailure = new AtomicBoolean();//Michel:节点异常标志
 
     public MasterFaultDetection(Settings settings, ThreadPool threadPool, TransportService transportService,
                                 java.util.function.Supplier<ClusterState> clusterStateSupplier, MasterService masterService,
@@ -86,7 +89,7 @@ public class MasterFaultDetection extends FaultDetection {
 
         logger.debug("[master] uses ping_interval [{}], ping_timeout [{}], ping_retries [{}]", pingInterval, pingRetryTimeout,
             pingRetryCount);
-
+        //Michel:注册一个master_ping服务，以便处理其他节点的master_ping请求
         transportService.registerRequestHandler(
             MASTER_PING_ACTION_NAME, MasterPingRequest::new, ThreadPool.Names.SAME, false, false, new MasterPingRequestHandler());
     }
@@ -94,6 +97,7 @@ public class MasterFaultDetection extends FaultDetection {
     public DiscoveryNode masterNode() {
         return this.masterNode;
     }
+    //Michel:添加或移除监听器
 
     public void addListener(Listener listener) {
         listeners.add(listener);
@@ -103,6 +107,7 @@ public class MasterFaultDetection extends FaultDetection {
         listeners.remove(listener);
     }
 
+    //Michel:重启主节点异常检测：集群健康状态发生变化时会重启一次
     public void restart(DiscoveryNode masterNode, String reason) {
         synchronized (masterNodeMutex) {
             if (logger.isDebugEnabled()) {
@@ -113,19 +118,21 @@ public class MasterFaultDetection extends FaultDetection {
         }
     }
 
+    //Michel:启动主节点异常检测（外部指定主节点）
     private void innerStart(final DiscoveryNode masterNode) {
         this.masterNode = masterNode;
         this.retryCount = 0;
-        this.notifiedMasterFailure.set(false);
-        if (masterPinger != null) {
-            masterPinger.stop();
+        this.notifiedMasterFailure.set(false);//Michel:将异常标识置为false
+        if (masterPinger != null) {//Michel:更新pinger
+            masterPinger.stop();//Question:停止的话线程池会放过他？？
         }
         this.masterPinger = new MasterPinger();
 
         // we start pinging slightly later to allow the chosen master to complete it's own master election
-        threadPool.schedule(pingInterval, ThreadPool.Names.SAME, masterPinger);
+        threadPool.schedule(pingInterval, ThreadPool.Names.SAME, masterPinger);//Michel:配置定时执行
     }
 
+    //Michel:停止主节点异常检测
     public void stop(String reason) {
         synchronized (masterNodeMutex) {
             if (masterNode != null) {
@@ -137,16 +144,18 @@ public class MasterFaultDetection extends FaultDetection {
         }
     }
 
+    //Michel:停止主节点异常检测实际执行代码
     private void innerStop() {
         // also will stop the next ping schedule
         this.retryCount = 0;
         if (masterPinger != null) {
-            masterPinger.stop();
+            masterPinger.stop();//听到；pinger
             masterPinger = null;
         }
         this.masterNode = null;
     }
 
+    //Michel:关闭主节点异常检测，并清空所有监听器
     @Override
     public void close() {
         super.close();
@@ -154,17 +163,18 @@ public class MasterFaultDetection extends FaultDetection {
         this.listeners.clear();
     }
 
+    //Michel:主节点异常检测，对节点离开事件的处理
     @Override
     protected void handleTransportDisconnect(DiscoveryNode node) {
         synchronized (masterNodeMutex) {
-            if (!node.equals(this.masterNode)) {
+            if (!node.equals(this.masterNode)) {//Michel:1 过滤非主节点的断开连接事件
                 return;
             }
-            if (connectOnNetworkDisconnect) {
+            if (connectOnNetworkDisconnect) {//Michel:2 如果开始了断连尝试连接
                 try {
-                    transportService.connectToNode(node);
+                    transportService.connectToNode(node);//Michel： 2.1 尝试连接，如果失败会抛出异常
                     // if all is well, make sure we restart the pinger
-                    if (masterPinger != null) {
+                    if (masterPinger != null) {//Michel: 2.2 重连成功了则更新pinger
                         masterPinger.stop();
                     }
                     this.masterPinger = new MasterPinger();
@@ -174,15 +184,16 @@ public class MasterFaultDetection extends FaultDetection {
                     logger.trace("[master] [{}] transport disconnected (with verified connect)", masterNode);
                     notifyMasterFailure(masterNode, null, "transport disconnected (with verified connect)");
                 }
-            } else {
+            } else {//Michel:2.2 如果对应配置为false，则直接通知节点异常
                 logger.trace("[master] [{}] transport disconnected", node);
                 notifyMasterFailure(node, null, "transport disconnected");
             }
         }
     }
 
+    //Michel: 使用线程池，并发通知各listener
     private void notifyMasterFailure(final DiscoveryNode masterNode, final Throwable cause, final String reason) {
-        if (notifiedMasterFailure.compareAndSet(false, true)) {
+        if (notifiedMasterFailure.compareAndSet(false, true)) {//Michel:如果已经为true了说明已经通知过了
             try {
                 threadPool.generic().execute(() -> {
                     for (Listener listener : listeners) {

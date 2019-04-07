@@ -54,11 +54,13 @@ import static org.elasticsearch.gateway.GatewayService.STATE_NOT_RECOVERED_BLOCK
 /**
  * This class processes incoming join request (passed zia {@link ZenDiscovery}). Incoming nodes
  * are directly added to the cluster state or are accumulated during master election.
+ * Michel:该类用于处理其他节点的加入请求。收到的加入请求被积累起来（当前节点主节点角色没有被确认之前）或直接被添加到集群状态中
  */
+//
 public class NodeJoinController extends AbstractComponent {
 
-    private final MasterService masterService;
-    private final JoinTaskExecutor joinTaskExecutor;
+    private final MasterService masterService;//Michel:更新集群状态使用
+    private final JoinTaskExecutor joinTaskExecutor;//Michel:加入集群任务执行器
 
     // this is set while trying to become a master
     // mutation should be done under lock
@@ -85,8 +87,10 @@ public class NodeJoinController extends AbstractComponent {
      * @param callback            the result of the election (success or failure) will be communicated by calling methods on this
      *                            object
      **/
+    //Michel:等待足够候选主节点票数来完成主节点选举（在调用之前需要先调用tartElectionContext()积累票数）
     public void waitToBeElectedAsMaster(int requiredMasterJoins, TimeValue timeValue, final ElectionCallback callback) {
-        final CountDownLatch done = new CountDownLatch(1);
+        final CountDownLatch done = new CountDownLatch(1);//Michel:等待选举节点的栅栏
+        //Michel:封装回调（增加对栅栏的操作，以控制等待）
         final ElectionCallback wrapperCallback = new ElectionCallback() {
             @Override
             public void onElectedAsMaster(ClusterState state) {
@@ -137,6 +141,7 @@ public class NodeJoinController extends AbstractComponent {
     /**
      * utility method to fail the given election context under the cluster state thread
      */
+    //Michel: 选举过程出现问题，如等待超时或关闭异常时调用
     private synchronized void failContextIfNeeded(final ElectionContext context, final String reason) {
         if (electionContext == context) {
             stopElectionContext(reason);
@@ -147,6 +152,7 @@ public class NodeJoinController extends AbstractComponent {
      * Accumulates any future incoming join request. Pending join requests will be processed in the final steps of becoming a
      * master or when {@link #stopElectionContext(String)} is called.
      */
+    //Michel:初始化一个electionContext用于积累其他节点的加入请求（票数）
     public synchronized void startElectionContext() {
         logger.trace("starting an election context, will accumulate joins");
         assert electionContext == null : "double startElectionContext() calls";
@@ -185,6 +191,7 @@ public class NodeJoinController extends AbstractComponent {
      * checks if there is an on going request to become master and if it has enough pending joins. If so, the node will
      * become master via a ClusterState update task.
      */
+    //Michel:查看票数是否足够，足够则成为主节点，否则什么都不做
     private synchronized void checkPendingJoinsAndElectIfNeeded() {
         assert electionContext != null : "election check requested but no active context";
         final int pendingMasterJoins = electionContext.getPendingMasterJoinsCount();
@@ -203,6 +210,7 @@ public class NodeJoinController extends AbstractComponent {
         }
     }
 
+    //Michel:选举触发回调动作抽象接口
     public interface ElectionCallback {
         /**
          * called when the local node is successfully elected as master
@@ -217,13 +225,15 @@ public class NodeJoinController extends AbstractComponent {
         void onFailure(Throwable t);
     }
 
+    //Michel:主节点选举上下文
     class ElectionContext {
         private ElectionCallback callback = null;
-        private int requiredMasterJoins = -1;
+        private int requiredMasterJoins = -1;//Michel:需要加入的主节点个数,需要至少这么多节点认可才可以成为主节点
         private final Map<DiscoveryNode, List<MembershipAction.JoinCallback>> joinRequestAccumulator = new HashMap<>();
 
-        final AtomicBoolean closed = new AtomicBoolean();
+        final AtomicBoolean closed = new AtomicBoolean();//Michel:关闭开关
 
+        //Michel:在开始尝试被选举为主节点时：需要的最小票数+选举成功回调
         public synchronized void onAttemptToBeElected(int requiredMasterJoins, ElectionCallback callback) {
             ensureOpen();
             assert this.requiredMasterJoins < 0;
@@ -232,12 +242,13 @@ public class NodeJoinController extends AbstractComponent {
             this.callback = callback;
         }
 
+        //Michel:当有加入请求时，将请求加入列表中
         public synchronized void addIncomingJoin(DiscoveryNode node, MembershipAction.JoinCallback callback) {
             ensureOpen();
             joinRequestAccumulator.computeIfAbsent(node, n -> new ArrayList<>()).add(callback);
         }
 
-
+        //Michel:判断当前票数是否足够
         public synchronized boolean isEnoughPendingJoins(int pendingMasterJoins) {
             final boolean hasEnough;
             if (requiredMasterJoins < 0) {
@@ -250,12 +261,14 @@ public class NodeJoinController extends AbstractComponent {
             return hasEnough;
         }
 
+        //Michel:获取积累的请求
         private Map<DiscoveryNode, ClusterStateTaskListener> getPendingAsTasks() {
             Map<DiscoveryNode, ClusterStateTaskListener> tasks = new HashMap<>();
             joinRequestAccumulator.entrySet().stream().forEach(e -> tasks.put(e.getKey(), new JoinTaskListener(e.getValue(), logger)));
             return tasks;
         }
 
+        //Michel:获取当前票数(只统计候选主节点)
         public synchronized int getPendingMasterJoinsCount() {
             int pendingMasterJoins = 0;
             for (DiscoveryNode node : joinRequestAccumulator.keySet()) {
@@ -265,7 +278,7 @@ public class NodeJoinController extends AbstractComponent {
             }
             return pendingMasterJoins;
         }
-
+        //Michel:当票数足够后，关闭context，并成为主节点
         public synchronized void closeAndBecomeMaster() {
             assert callback != null : "becoming a master but the callback is not yet set";
             assert isEnoughPendingJoins(getPendingMasterJoinsCount()) : "becoming a master but pending joins of "
@@ -276,7 +289,8 @@ public class NodeJoinController extends AbstractComponent {
             Map<DiscoveryNode, ClusterStateTaskListener> tasks = getPendingAsTasks();
             final String source = "zen-disco-elected-as-master ([" + tasks.size() + "] nodes joined)";
 
-            tasks.put(BECOME_MASTER_TASK, (source1, e) -> {}); // noop listener, the election finished listener determines result
+            tasks.put(BECOME_MASTER_TASK, (source1, e) -> {
+            }); // noop listener, the election finished listener determines result
             tasks.put(FINISH_ELECTION_TASK, electionFinishedListener);
             masterService.submitStateUpdateTasks(source, tasks, ClusterStateTaskConfig.build(Priority.URGENT), joinTaskExecutor);
         }
@@ -288,19 +302,19 @@ public class NodeJoinController extends AbstractComponent {
             tasks.put(FINISH_ELECTION_TASK, electionFinishedListener);
             masterService.submitStateUpdateTasks(source, tasks, ClusterStateTaskConfig.build(Priority.URGENT), joinTaskExecutor);
         }
-
+        //Michel:关闭context
         private void innerClose() {
             if (closed.getAndSet(true)) {
                 throw new AlreadyClosedException("election context is already closed");
             }
         }
-
+        //Michel:确保当前context处于开启状态
         private void ensureOpen() {
             if (closed.get()) {
                 throw new AlreadyClosedException("election context is already closed");
             }
         }
-
+        //Michel:获取选举回调
         private synchronized ElectionCallback getCallback() {
             return callback;
         }
@@ -321,7 +335,7 @@ public class NodeJoinController extends AbstractComponent {
                 callback.onFailure(t);
             }
         }
-
+        //Michel:选举结束监听器（分选为主节点，未被选为主节点和异常三种情况）
         private final ClusterStateTaskListener electionFinishedListener = new ClusterStateTaskListener() {
 
             @Override
@@ -335,12 +349,14 @@ public class NodeJoinController extends AbstractComponent {
 
             @Override
             public void onFailure(String source, Exception e) {
+                //Grammar:非静态内部类访问外部类的成员方法要使用OuterClass.this.fun()
                 ElectionContext.this.onFailure(e);
             }
         };
 
     }
 
+    //Michel:加入集群监听器：封装加入集群回调，并记录日志（主要就是onFailure和clusterSateProcessed，批量处理tasks）
     static class JoinTaskListener implements ClusterStateTaskListener {
         final List<MembershipAction.JoinCallback> callbacks;
         private final Logger logger;
@@ -395,10 +411,10 @@ public class NodeJoinController extends AbstractComponent {
      */
     public static final DiscoveryNode FINISH_ELECTION_TASK = new DiscoveryNode("_FINISH_ELECTION_",
         new TransportAddress(TransportAddress.META_ADDRESS, 0), Collections.emptyMap(), Collections.emptySet(), Version.CURRENT) {
-            @Override
-            public String toString() {
-                return ""; // this is not really task , so don't log anything about it...
-            }
+        @Override
+        public String toString() {
+            return ""; // this is not really task , so don't log anything about it...
+        }
     };
 
     // visible for testing
@@ -424,7 +440,7 @@ public class NodeJoinController extends AbstractComponent {
             boolean nodesChanged = false;
             ClusterState.Builder newState;
 
-            if (joiningNodes.size() == 1  && joiningNodes.get(0).equals(FINISH_ELECTION_TASK)) {
+            if (joiningNodes.size() == 1 && joiningNodes.get(0).equals(FINISH_ELECTION_TASK)) {
                 return results.successes(joiningNodes).build(currentState);
             } else if (currentNodes.getMasterNode() == null && joiningNodes.contains(BECOME_MASTER_TASK)) {
                 assert joiningNodes.contains(FINISH_ELECTION_TASK) : "becoming a master but election is not finished " + joiningNodes;

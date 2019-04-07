@@ -25,6 +25,8 @@ import org.elasticsearch.common.logging.DeprecationLogger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.Node;
 //Michel:抽象组件类，保存了一些logger和setting
+//Michel:https://github.com/mushao999/elasticsearch_note/blob/master/server/elasticsearch/common/component/AbstractComponent.md
+//Done
 public abstract class AbstractComponent {
 
     protected final Logger logger;

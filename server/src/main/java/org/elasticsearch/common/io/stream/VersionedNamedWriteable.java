@@ -23,6 +23,7 @@ import org.elasticsearch.Version;
 
 /**
  * A {@link NamedWriteable} that has a minimum version associated with it.
+ * Michel:一个可以获取名称和最小支持版本的Writeable对象
  */
 public interface VersionedNamedWriteable extends NamedWriteable {
 

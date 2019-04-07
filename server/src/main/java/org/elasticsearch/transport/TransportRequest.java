@@ -26,6 +26,7 @@ import org.elasticsearch.tasks.TaskId;
 
 import java.io.IOException;
 
+//Michel:https://github.com/mushao999/elasticsearch_note/blob/master/server/elasticsearch/transport/TransportRequest.md
 public abstract class TransportRequest extends TransportMessage implements TaskAwareRequest {
     public static class Empty extends TransportRequest {
         public static final Empty INSTANCE = new Empty();

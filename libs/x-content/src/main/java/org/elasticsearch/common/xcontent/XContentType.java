@@ -29,6 +29,7 @@ import java.util.Objects;
 
 /**
  * The content type of {@link org.elasticsearch.common.xcontent.XContent}.
+ * Michel:XContent的类型
  */
 public enum XContentType {
 

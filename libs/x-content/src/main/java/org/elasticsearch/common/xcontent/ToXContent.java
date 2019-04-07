@@ -30,7 +30,7 @@ import java.util.Map;
  * but those that don't may or may not require emitting a startObject and an endObject.
  */
 public interface ToXContent {
-
+    //Michel:定义一个参数存储接口：可以通过该接口获取参数
     interface Params {
         String param(String key);
 
@@ -40,7 +40,7 @@ public interface ToXContent {
 
         Boolean paramAsBoolean(String key, Boolean defaultValue);
     }
-
+    //Michel:空参数存储
     Params EMPTY_PARAMS = new Params() {
         @Override
         public String param(String key) {
@@ -63,7 +63,7 @@ public interface ToXContent {
         }
 
     };
-
+    //Michel:Map参数存储，将map存储入该接口，并提供获取方法
     class MapParams implements Params {
 
         private final Map<String, String> params;
@@ -97,6 +97,7 @@ public interface ToXContent {
         }
     }
 
+    //在MapParams的基础之上增加一个delegate，先从Map中查找，找不到再从delegate中查找，最后使用默认值
     class DelegatingMapParams extends MapParams {
 
         private final Params delegate;

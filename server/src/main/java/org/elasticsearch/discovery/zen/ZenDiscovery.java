@@ -148,7 +148,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
     private final NodeJoinController nodeJoinController;
     private final NodeRemovalClusterStateTaskExecutor nodeRemovalExecutor;
     private final ClusterApplier clusterApplier;
-    private final AtomicReference<ClusterState> committedState; // last committed cluster state
+    private final AtomicReference<ClusterState> committedState; // last committed cluster state//Michel:集群的最新状态
     private final Object stateMutex = new Object();
     private final Collection<BiConsumer<DiscoveryNode, ClusterState>> onJoinValidators;
 
@@ -157,7 +157,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
                         ClusterSettings clusterSettings, UnicastHostsProvider hostsProvider, AllocationService allocationService,
                         Collection<BiConsumer<DiscoveryNode, ClusterState>> onJoinValidators) {
         super(settings);
-        this.onJoinValidators = addBuiltInJoinValidators(onJoinValidators);
+        this.onJoinValidators = addBuiltInJoinValidators(onJoinValidators);//Michel:添加内置加入集群验证器
         this.masterService = masterService;
         this.clusterApplier = clusterApplier;
         this.transportService = transportService;
@@ -193,7 +193,8 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
                 // current cluster state. When it receives a cluster state from the master with
                 // a dynamic minimum master nodes setting int it, we must make sure we don't reject
                 // it.
-
+                //Michel: 如果当前节点已经被选为主节点，那么不允许将最小候选主节点个数调整为大于当前候选主节点个数
+                //Question: 当设置最小最节点个数时，一个节点报错会导致其他节点设置回滚吗？这一块的机制要研究一下
                 if (clusterState.nodes().isLocalNodeElectedMaster() && value > masterNodes) {
                     throw new IllegalArgumentException("cannot set "
                         + ElectMasterService.DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING.getKey() + " to more than the current" +
@@ -213,19 +214,20 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
                         transportService,
                         namedWriteableRegistry,
                         this,
-                        discoverySettings);
-        this.membership = new MembershipAction(settings, transportService, new MembershipListener(), onJoinValidators);
-        this.joinThreadControl = new JoinThreadControl();
+                        discoverySettings);//Michel: TODO: 状态发布相关逻辑
+        this.membership = new MembershipAction(settings, transportService, new MembershipListener(), onJoinValidators);//Michel:生成节点关系动作类：用于接收和发送节点间请求
+        this.joinThreadControl = new JoinThreadControl();//Important:加入集群的核心进程生成
 
-        this.nodeJoinController = new NodeJoinController(masterService, allocationService, electMaster, settings);
-        this.nodeRemovalExecutor = new NodeRemovalClusterStateTaskExecutor(allocationService, electMaster, this::submitRejoin, logger);
+        this.nodeJoinController = new NodeJoinController(masterService, allocationService, electMaster, settings);//Michel:TODO:节点加入集群处理Controller
+        this.nodeRemovalExecutor = new NodeRemovalClusterStateTaskExecutor(allocationService, electMaster, this::submitRejoin, logger);//Michel:节点离开处理Controller
 
-        masterService.setClusterStateSupplier(this::clusterState);
+        masterService.setClusterStateSupplier(this::clusterState);//配置集群状态获取函数
 
-        transportService.registerRequestHandler(
+        transportService.registerRequestHandler(//Michel:配置重新加入集群请求接口
             DISCOVERY_REJOIN_ACTION_NAME, RejoinClusterRequest::new, ThreadPool.Names.SAME, new RejoinClusterRequestHandler());
     }
 
+    //Michel:添加内置的加入集群校验器（节点是否兼容，缩容是否兼容）(构造器中使用)
     static Collection<BiConsumer<DiscoveryNode,ClusterState>> addBuiltInJoinValidators(
         Collection<BiConsumer<DiscoveryNode,ClusterState>> onJoinValidators) {
         Collection<BiConsumer<DiscoveryNode, ClusterState>> validators = new ArrayList<>();
@@ -434,9 +436,10 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
      * or spawn a new join thread upon failure to do so.
      */
     private void innerJoinCluster() {
+        //Michel:step1 选择主节点
         DiscoveryNode masterNode = null;
         final Thread currentThread = Thread.currentThread();
-        nodeJoinController.startElectionContext();
+        nodeJoinController.startElectionContext();//todo:
         while (masterNode == null && joinThreadControl.joinThreadActive(currentThread)) {
             masterNode = findMaster();
         }
@@ -469,7 +472,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
             );
         } else {//Michel: 如果其他节点为主节点则向该节点发送加入请求
             // process any incoming joins (they will fail because we are not the master)
-            nodeJoinController.stopElectionContext(masterNode + " elected");
+            nodeJoinController.stopElectionContext(masterNode + " elected");//Michel:结束选举context因为当前节点不是主节点，不用处理集群加入请求
 
             // send join request
             final boolean success = joinElectedMaster(masterNode);
@@ -648,6 +651,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
 
     }
 
+    //Michel:调用MasterService的submitStateUpdateTask来处理节点离开请求
     private void removeNode(final DiscoveryNode node, final String source, final String reason) {
         masterService.submitStateUpdateTask(
                 source + "(" + node + "), reason(" + reason + ")",
@@ -657,6 +661,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
                 nodeRemovalExecutor);
     }
 
+    //Michel:处理节点离开请求
     private void handleLeaveRequest(final DiscoveryNode node) {
         if (lifecycleState() != Lifecycle.State.STARTED) {
             // not started, ignore a node failure
@@ -700,6 +705,8 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         }
     }
 
+    //Michel:主节点离开后集群清理状态并重新开始选举的方法：Question:深入理解
+    //TODO:需要好好理解的一个点
     private void handleMasterGone(final DiscoveryNode masterNode, final Throwable cause, final String reason) {
         if (lifecycleState() != Lifecycle.State.STARTED) {
             // not started, ignore a master failure
@@ -881,10 +888,11 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         }
     }
 
+    //Michel: 找主节点（有则返回，没有则选举一个出来）
     private DiscoveryNode findMaster() {
         logger.trace("starting to ping");
         //Michel: Step 1 ping所有的节点
-        List<ZenPing.PingResponse> fullPingResponses = pingAndWait(pingTimeout).toList();
+        List<ZenPing.PingResponse> fullPingResponses = pingAndWait(pingTimeout).toList();//Michel:TODO:后续展开点
         if (fullPingResponses == null) {
             logger.trace("No full ping responses");
             return null;
@@ -901,7 +909,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
             logger.trace("full ping responses:{}", sb);
         }
         //Michel: step 2 将自己加入可ping通的节点列表中
-        final DiscoveryNode localNode = transportService.getLocalNode();
+        final DiscoveryNode localNode = transportService.getLocalNode();//Michel:TODO:获取自己node的方法
         // add our selves
         assert fullPingResponses.stream().map(ZenPing.PingResponse::node)
             .filter(n -> n.equals(localNode)).findAny().isPresent() == false;
@@ -910,13 +918,13 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
 
         // filter responses
         //Michel：step 3 如果开启了IgnoreNonMasters，则过滤非Master Ping结果
-        final List<ZenPing.PingResponse> pingResponses = filterPingResponses(fullPingResponses, masterElectionIgnoreNonMasters, logger);
+        final List<ZenPing.PingResponse> pingResponses = filterPingResponses(fullPingResponses, masterElectionIgnoreNonMasters, logger);//Michel:过滤非主节点的作用？？
         //Michel: step 4 获取当前存活的主节点
         List<DiscoveryNode> activeMasters = new ArrayList<>();
         for (ZenPing.PingResponse pingResponse : pingResponses) {
             // We can't include the local node in pingMasters list, otherwise we may up electing ourselves without
             // any check / verifications from other nodes in ZenDiscover#innerJoinCluster()
-            if (pingResponse.master() != null && !localNode.equals(pingResponse.master())) {
+            if (pingResponse.master() != null && !localNode.equals(pingResponse.master())) {//Michel:Question深层了解这一块对本身的拦截
                 activeMasters.add(pingResponse.master());
             }
         }
@@ -930,8 +938,8 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
             }
         }
 
-        if (activeMasters.isEmpty()) {//没有活动的主节点则开始选举
-            if (electMaster.hasEnoughCandidates(masterCandidates)) {//是否有足够的候选主节点
+        if (activeMasters.isEmpty()) {//Michel:没有活动的主节点则开始选举
+            if (electMaster.hasEnoughCandidates(masterCandidates)) {//Michel:是否有足够的候选主节点
                 final ElectMasterService.MasterCandidate winner = electMaster.electMaster(masterCandidates);//选举主节点
                 logger.trace("candidate {} won election", winner);
                 return winner.getNode();
@@ -942,7 +950,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
                 return null;
             }
         } else {//有活动的主节点，则从活动的主节点中选择节点ID最小的
-            assert !activeMasters.contains(localNode) : "local node should never be elected as master when other nodes indicate an active master";
+            assert !activeMasters.contains(localNode) : "local node should never be elected as master when other nodes indicate an active master";//Michel：再次确认当前节点没有被预先选为主节点
             // lets tie break between discovered nodes
             //Michel:选择节点ID小的节点作为主节点（防止出现多个存活主节点的情况）
             //Question:这个情况会发生吗？
@@ -950,6 +958,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         }
     }
 
+    //Michel:该函数功能就是在开启忽略非主节点开关后，过滤掉非master节点
     static List<ZenPing.PingResponse> filterPingResponses(List<ZenPing.PingResponse> fullPingResponses, boolean masterElectionIgnoreNonMasters, Logger logger) {
         List<ZenPing.PingResponse> pingResponses;
         //Michel:如果开启了忽略非Master Ping的配置，则过滤非Master
@@ -1230,6 +1239,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         /** cleans any running joining thread and calls {@link #rejoin} */
         public void stopRunningThreadAndRejoin(String reason) {
             //Grammar:使用holdsLock来判断是否持有锁
+            //Michel:只有持有该锁的线程才能将currentJoinThread置null
             assert Thread.holdsLock(stateMutex);
             currentJoinThread.set(null);
             rejoin(reason);
@@ -1238,20 +1248,24 @@ public class ZenDiscovery extends AbstractLifecycleComponent implements Discover
         /** starts a new joining thread if there is no currently active one and join thread controlling is started */
         public void startNewThreadIfNotRunning() {
             assert Thread.holdsLock(stateMutex);
-            //Michel:存活则直接返回
+            //Michel:存活则直接返回(保证只会有一个加入线程在跑)，此处仅是起到了提前拦截作用，在创建线程的时候还是要判断，防止并发问题
             if (joinThreadActive()) {
                 return;
             }
             //Todo: 了解es threadpool的实现
+            //Michel:发起加入集群流程
             threadPool.generic().execute(new Runnable() {
                 @Override
                 public void run() {
+                    //Michel:当前线程设置为加入集群线程，如果冲突说明还有其他线程在跑（因此要产生一个新线程需要把在老线程中把currentJoinThread设置为null）
                     Thread currentThread = Thread.currentThread();
                     if (!currentJoinThread.compareAndSet(null, currentThread)) {
                         return;
                     }
+                    //Michel:如果设置了停止标志，或者要当前线程已经不是指定的要运行的join的线程
                     while (running.get() && joinThreadActive(currentThread)) {
                         try {
+                            //Important: 节点加入集群的核心方法入口
                             innerJoinCluster();
                             return;
                         } catch (Exception e) {

@@ -20,13 +20,14 @@
 package org.elasticsearch.transport;
 
 import org.elasticsearch.tasks.Task;
-
+//Michel: 表示一个处理Transport请求的handler
+//Michel:https://github.com/mushao999/elasticsearch_note/blob/master/server/elasticsearch/transport/TransportRequestHandler.md
 public interface TransportRequestHandler<T extends TransportRequest> {
 
     /**
      * Override this method if access to the Task parameter is needed
      */
-    default void messageReceived(final T request, final TransportChannel channel, Task task) throws Exception {
+    default void messageReceived(final T request, final TransportChannel channel, Task task) throws Exception {//Michel:TODO：Task是什么？
         messageReceived(request, channel);
     }
 

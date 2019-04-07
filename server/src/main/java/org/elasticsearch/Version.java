@@ -37,12 +37,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+//Important：ES版本核心类
+/*Michel:
+
+ */
+
 public class Version implements Comparable<Version>, ToXContentFragment {
     /*
      * The logic for ID is: XXYYZZAA, where XX is major version, YY is minor version, ZZ is revision, and AA is alpha/beta/rc indicator AA
      * values below 25 are for alpha builder (since 5.0), and above 25 and below 50 are beta builds, and below 99 are RC builds, with 99
      * indicating a release the (internal) format of the id is there so we can easily do after/before checks on the id
      */
+    //Michel:定义了一组版本ID以及其对应的Version对象（包含ID和对应Lucene对象）
     public static final int V_EMPTY_ID = 0;
     public static final Version V_EMPTY = new Version(V_EMPTY_ID, org.apache.lucene.util.Version.LATEST);
     public static final int V_5_0_0_alpha1_ID = 5000001;
@@ -193,15 +199,18 @@ public class Version implements Comparable<Version>, ToXContentFragment {
 
     public static final Version CURRENT = V_6_5_1;
 
+    //Michel:要求当前版本必须与引入的lucene最新版本一致，否则报错
     static {
         assert CURRENT.luceneVersion.equals(org.apache.lucene.util.Version.LATEST) : "Version must be upgraded to ["
-                + org.apache.lucene.util.Version.LATEST + "] is still set to [" + CURRENT.luceneVersion + "]";
+            + org.apache.lucene.util.Version.LATEST + "] is still set to [" + CURRENT.luceneVersion + "]";
     }
 
+    //Michel:通过ID获取版本信息
     public static Version readVersion(StreamInput in) throws IOException {
         return fromId(in.readVInt());
     }
 
+    //Michel:通过ID拿到对应的版本对象
     public static Version fromId(int id) {
         switch (id) {
             case V_6_5_1_ID:
@@ -353,21 +362,23 @@ public class Version implements Comparable<Version>, ToXContentFragment {
      * Return the {@link Version} of Elasticsearch that has been used to create an index given its settings.
      *
      * @throws IllegalStateException if the given index settings doesn't contain a value for the key
-     *         {@value IndexMetaData#SETTING_VERSION_CREATED}
+     *                               {@value IndexMetaData#SETTING_VERSION_CREATED}
      */
+    //Michel:通过索引配置获取创建该索引的ES版本信息
     public static Version indexCreated(Settings indexSettings) {
         final Version indexVersion = IndexMetaData.SETTING_INDEX_VERSION_CREATED.get(indexSettings);
         if (indexVersion == V_EMPTY) {
             final String message = String.format(
-                    Locale.ROOT,
-                    "[%s] is not present in the index settings for index with UUID [%s]",
-                    IndexMetaData.SETTING_INDEX_VERSION_CREATED.getKey(),
-                    indexSettings.get(IndexMetaData.SETTING_INDEX_UUID));
+                Locale.ROOT,
+                "[%s] is not present in the index settings for index with UUID [%s]",
+                IndexMetaData.SETTING_INDEX_VERSION_CREATED.getKey(),
+                indexSettings.get(IndexMetaData.SETTING_INDEX_UUID));
             throw new IllegalStateException(message);
         }
         return indexVersion;
     }
 
+    //Michel:将版本ID写入输出流
     public static void writeVersion(Version version, StreamOutput out) throws IOException {
         out.writeVInt(version.id);
     }
@@ -375,6 +386,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
     /**
      * Returns the minimum version between the 2.
      */
+    //Michel:输出较小的版本号：通过ID值来比较
     public static Version min(Version version1, Version version2) {
         return version1.id < version2.id ? version1 : version2;
     }
@@ -382,55 +394,59 @@ public class Version implements Comparable<Version>, ToXContentFragment {
     /**
      * Returns the maximum version between the 2
      */
-    public static Version max(Version version1, Version version2) { return version1.id > version2.id ? version1 : version2; }
+    //Michel:输出较大的版本
+    public static Version max(Version version1, Version version2) {
+        return version1.id > version2.id ? version1 : version2;
+    }
 
     /**
      * Returns the version given its string representation, current version if the argument is null or empty
      */
+    //Michel:通过版本字符串生成版本对象
     public static Version fromString(String version) {
         if (!Strings.hasLength(version)) {
             return Version.CURRENT;
         }
         final boolean snapshot; // this is some BWC for 2.x and before indices
-        if (snapshot = version.endsWith("-SNAPSHOT")) {
+        if (snapshot = version.endsWith("-SNAPSHOT")) {//Michel:-SNAPSHOT结束的表示为snapshot版本
             version = version.substring(0, version.length() - 9);
         }
-        String[] parts = version.split("[.-]");
+        String[] parts = version.split("[.-]");//Michel:通过.-来划分，必须被划分为3段或4段
         if (parts.length < 3 || parts.length > 4) {
             throw new IllegalArgumentException(
-                    "the version needs to contain major, minor, and revision, and optionally the build: " + version);
+                "the version needs to contain major, minor, and revision, and optionally the build: " + version);
         }
 
         try {
-            final int rawMajor = Integer.parseInt(parts[0]);
-            if (rawMajor >= 5 && snapshot) { // we don't support snapshot as part of the version here anymore
+            final int rawMajor = Integer.parseInt(parts[0]);//Michel:第一部分是主版本号
+            if (rawMajor >= 5 && snapshot) { // we don't support snapshot as part of the version here anymore//Michel:5.x之后不再支持snapshot版本号
                 throw new IllegalArgumentException("illegal version format - snapshots are only supported until version 2.x");
             }
-            final int betaOffset = rawMajor < 5 ? 0 : 25;
+            final int betaOffset = rawMajor < 5 ? 0 : 25;//5.x之前，beta测试版本以1开始，5.x之后以25开始，统一处理为大于等于25的数字
             //we reverse the version id calculation based on some assumption as we can't reliably reverse the modulo
             final int major = rawMajor * 1000000;
-            final int minor = Integer.parseInt(parts[1]) * 10000;
-            final int revision = Integer.parseInt(parts[2]) * 100;
+            final int minor = Integer.parseInt(parts[1]) * 10000;//Michel: 第二部分是小版本号
+            final int revision = Integer.parseInt(parts[2]) * 100;//Michel: 第三部分是修订版本号
 
 
             int build = 99;
-            if (parts.length == 4) {
+            if (parts.length == 4) {//Michel:第四部分可选，为编译版本号，当前只能以alpha，beta(Beta)，rc（RC）开头,后面紧跟编译版本数字
                 String buildStr = parts[3];
-                if (buildStr.startsWith("alpha")) {
+                if (buildStr.startsWith("alpha")) {//Michel: alpha仅支持5.x及之后版本，且编译版本号不大于25
                     assert rawMajor >= 5 : "major must be >= 5 but was " + major;
                     build = Integer.parseInt(buildStr.substring(5));
-                    assert build < 25 : "expected a beta build but " + build + " >= 25";
-                } else if (buildStr.startsWith("Beta") || buildStr.startsWith("beta")) {
+                    assert build < 25 : "expected a beta build but " + build + " >= 25";//BugFound:此处应该为alpha
+                } else if (buildStr.startsWith("Beta") || buildStr.startsWith("beta")) {//beta版本必须大于25小于等于50
                     build = betaOffset + Integer.parseInt(buildStr.substring(4));
                     assert build < 50 : "expected a beta build but " + build + " >= 50";
-                } else if (buildStr.startsWith("RC") || buildStr.startsWith("rc")) {
+                } else if (buildStr.startsWith("RC") || buildStr.startsWith("rc")) {//rc版本号可以为任意值，在转换为ID前再加上50
                     build = Integer.parseInt(buildStr.substring(2)) + 50;
                 } else {
                     throw new IllegalArgumentException("unable to parse version " + version);
                 }
             }
 
-            return fromId(major + minor + revision + build);
+            return fromId(major + minor + revision + build);//Michel: Id=大版本*1000000 + 小版本*10000 + 修订版本*100 +编译版本号
 
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("unable to parse version " + version, e);
@@ -444,6 +460,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
     public final byte build;
     public final org.apache.lucene.util.Version luceneVersion;
 
+    //Michel:从ID生成一个Version对象
     Version(int id, org.apache.lucene.util.Version luceneVersion) {
         this.id = id;
         this.major = (byte) ((id / 1000000) % 100);
@@ -453,6 +470,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
         this.luceneVersion = luceneVersion;
     }
 
+    //Michel:以下四个为版本的比较函数，主要是通过ID进行比较
     public boolean after(Version version) {
         return version.id < id;
     }
@@ -484,6 +502,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
      * is not cheap. Since computing the minimum compatibility version can occur often, we use this holder to compute the declared versions
      * lazily once.
      */
+    //Michel:获取当前verison支持的版本号列表（通过反射实现因此使用懒加载（通过反射实现的原因是想在测试时指定其他class，复用同一段逻辑））
     private static class DeclaredVersionsHolder {
         static final List<Version> DECLARED_VERSIONS = Collections.unmodifiableList(getDeclaredVersions(Version.class));
     }
@@ -495,6 +514,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
      * is in most of the cases the smallest major version release unless the current version
      * is a beta or RC release then the version itself is returned.
      */
+    //Michel:如果版本号大于等于6.x，则最小支持版本为小一个大版本的最大小版本；否则为当前大版本的第一个发布版本
     public Version minimumCompatibilityVersion() {
         if (major >= 6) {
             // all major versions from 6 onwards are compatible with last minor series of the previous major
@@ -503,7 +523,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
             for (int i = DeclaredVersionsHolder.DECLARED_VERSIONS.size() - 1; i >= 0; i--) {
                 final Version candidateVersion = DeclaredVersionsHolder.DECLARED_VERSIONS.get(i);
                 if (candidateVersion.major == major - 1 && candidateVersion.isRelease() && after(candidateVersion)) {
-                    if (bwcVersion != null && candidateVersion.minor < bwcVersion.minor) {
+                    if (bwcVersion != null && candidateVersion.minor < bwcVersion.minor) {//Question: 确认为前一个大版本的最后一个小版本发布版本吗？
                         break;
                     }
                     bwcVersion = candidateVersion;
@@ -520,6 +540,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
      * can't be used with this version. This should also be used for file based serialization backwards compatibility ie. on serialization
      * code that is used to read / write file formats like transaction logs, cluster state, and index metadata.
      */
+    //Michel: 最小索引兼容版本：大版本-1（5为-3，小版本为0），即支持前一个版本
     public Version minimumIndexCompatibilityVersion() {
         final int bwcMajor;
         if (major == 5) {
@@ -534,6 +555,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
     /**
      * Returns <code>true</code> iff both version are compatible. Otherwise <code>false</code>
      */
+    //Michel:比较传入的版本与当前版本是否兼容，互相大于对方的最小支持版本，且大版本不能相差超过1
     public boolean isCompatible(Version version) {
         boolean compatible = onOrAfter(version.minimumCompatibilityVersion())
             && version.onOrAfter(minimumCompatibilityVersion());
@@ -545,18 +567,19 @@ public class Version implements Comparable<Version>, ToXContentFragment {
     @SuppressForbidden(reason = "System.out.*")
     public static void main(String[] args) {
         final String versionOutput = String.format(
-                Locale.ROOT,
-                "Version: %s, Build: %s/%s/%s/%s, JVM: %s",
-                Version.displayVersion(Version.CURRENT, Build.CURRENT.isSnapshot()),
-                Build.CURRENT.flavor().displayName(),
-                Build.CURRENT.type().displayName(),
-                Build.CURRENT.shortHash(),
-                Build.CURRENT.date(),
-                JvmInfo.jvmInfo().version());
+            Locale.ROOT,
+            "Version: %s, Build: %s/%s/%s/%s, JVM: %s",
+            Version.displayVersion(Version.CURRENT, Build.CURRENT.isSnapshot()),
+            Build.CURRENT.flavor().displayName(),
+            Build.CURRENT.type().displayName(),
+            Build.CURRENT.shortHash(),
+            Build.CURRENT.date(),
+            JvmInfo.jvmInfo().version());
         System.out.println(versionOutput);
     }
 
     @Override
+    //Michel:按照版本规则将版本转换为字符串
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(major).append('.').append(minor).append('.').append(revision);
@@ -569,7 +592,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
             } else {
                 sb.append(".Beta");
             }
-            sb.append(major < 5 ? build : build-25);
+            sb.append(major < 5 ? build : build - 25);
         } else if (build < 99) {
             if (major >= 2) {
                 sb.append("-rc");
@@ -581,11 +604,13 @@ public class Version implements Comparable<Version>, ToXContentFragment {
         return sb.toString();
     }
 
+    //Michel:带SNAPSHOT的版本展示
     public static String displayVersion(final Version version, final boolean isSnapshot) {
         return version + (isSnapshot ? "-SNAPSHOT" : "");
     }
 
     @Override
+    //Michel:通过ID判断是否相等
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -608,6 +633,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
         return id;
     }
 
+    //Michel：根据build版本号，来判断是alpha, beta, rc, release等（alpha 大版本大于等于5，build版本小于等于25；beta编译版本大于25小于等于50，RC大于50，小于99，发布版本为99）
     public boolean isBeta() {
         return major < 5 ? build < 50 : build >= 25 && build < 50;
     }
@@ -618,7 +644,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
      * have an alpha version.
      */
     public boolean isAlpha() {
-        return major < 5 ? false :  build < 25;
+        return major < 5 ? false : build < 25;
     }
 
     public boolean isRC() {
@@ -634,6 +660,7 @@ public class Version implements Comparable<Version>, ToXContentFragment {
      * The argument would normally be Version.class but is exposed for
      * testing with other classes-containing-version-constants.
      */
+    //Michel:获取给定的VersionClass支持的版本号（通过反射实现）
     public static List<Version> getDeclaredVersions(final Class<?> versionClass) {
         final Field[] fields = versionClass.getFields();
         final List<Version> versions = new ArrayList<>(fields.length);

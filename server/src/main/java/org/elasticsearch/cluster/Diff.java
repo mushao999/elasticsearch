@@ -24,10 +24,13 @@ import org.elasticsearch.common.io.stream.Writeable;
 /**
  * Represents difference between states of cluster state parts
  */
+//Michel:代表两个T类型对象的Diff(看注释主要用于集群状态的不同)
+//Done
 public interface Diff<T> extends Writeable {
 
     /**
      * Applies difference to the specified part and returns the resulted part
      */
+    //Michel:对指定的T对象应用该Diff, 得到应用Diff的结果
     T apply(T part);
 }

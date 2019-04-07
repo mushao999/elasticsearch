@@ -22,6 +22,7 @@ import org.elasticsearch.cluster.service.MasterService;
 
 import java.util.List;
 
+//Michel:集群状态改变Listener(onFailure, onNoLongerMaster, clusterStateProcessed)
 public interface ClusterStateTaskListener {
 
     /**

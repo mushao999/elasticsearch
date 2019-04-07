@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
  * executed on network threads. Consumers must fork in the case of long running or blocking
  * operations.
  */
+//Michel: transport事件监听器的抽象接口定义，当发生对应时间时会调用定义的各方法，可以部分实现
 public interface TransportConnectionListener {
 
     /**

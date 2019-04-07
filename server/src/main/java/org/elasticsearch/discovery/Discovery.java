@@ -35,7 +35,7 @@ import java.io.IOException;
  * events.
  */
 //Michel:抽象了所有执行Discovery的对象
-//Done
+//Structure:节点发现功能的抽象接口
 public interface Discovery extends LifecycleComponent {
 
     /**

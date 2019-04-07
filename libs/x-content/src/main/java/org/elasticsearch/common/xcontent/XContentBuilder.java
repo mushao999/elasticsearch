@@ -45,6 +45,7 @@ import java.util.function.Function;
 
 /**
  * A utility to build XContent (ie json).
+ * Michel:生成XContent
  */
 public final class XContentBuilder implements Closeable, Flushable {
 

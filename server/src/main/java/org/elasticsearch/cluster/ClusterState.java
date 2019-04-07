@@ -87,6 +87,11 @@ import java.util.Set;
  * make sure that the correct diffs are applied. If uuids don’t match, the {@link ClusterStateDiff#apply} method
  * throws the {@link IncompatibleClusterStateVersionException}, which causes the publishing mechanism to send
  * a full version of the cluster state to the node on which this exception was thrown.
+ * Important: 集群状态的表示类
+ * 1. 集群状态是不可变对象，应该为RoutingNodes结构，由于RoutinTable构建
+ * 2. 只能由master更新，所有的更新只能在单个线程中完成，该线程由ClusterService控制。每次更新完成后Discovery的publish方法会向所有节点发布一个新版本的ClusterState
+ * 3. ClusterState类实现了Diffable接口，以便于在发布时发布状态的变更，而不是整个状态。当一个节点拥有之前verion的状态则只应发布变更即可，如果没有前一个version，则应该整体传递。（看代码验证）
+ * 4. 每次ClusterState的变更都会产生一个uuid用于唯一确定一次集群状态的变更
  */
 public class ClusterState implements ToXContentFragment, Diffable<ClusterState> {
 
