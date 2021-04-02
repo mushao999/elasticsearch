@@ -86,7 +86,7 @@ public final class ElasticsearchDirectoryReader extends FilterDirectoryReader {
         ElasticsearchDirectoryReader elasticsearchDirectoryReader = getElasticsearchDirectoryReader(reader);
         if (elasticsearchDirectoryReader == null) {
             throw new IllegalArgumentException(
-                    "Can't install close listener reader is not an ElasticsearchDirectoryReader/ElasticsearchLeafReader");
+                    "Can't install close listener, reader is not an ElasticsearchDirectoryReader/ElasticsearchLeafReader");
         }
         IndexReader.CacheHelper cacheHelper = elasticsearchDirectoryReader.getReaderCacheHelper();
         if (cacheHelper == null) {

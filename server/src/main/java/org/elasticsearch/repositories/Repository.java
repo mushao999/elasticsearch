@@ -43,7 +43,7 @@ import java.util.function.Function;
  * <ul>
  * <li>Data nodes call {@link Repository#snapshotShard}
  * for each shard</li>
- * <li>When all shard calls return master calls {@link #finalizeSnapshot} with possible list of failures</li>
+ * <li>When all shard calls return master calls {@link Repository#finalizeSnapshot} with possible list of failures</li>
  * </ul>
  */
 public interface Repository extends LifecycleComponent {
