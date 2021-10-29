@@ -419,7 +419,7 @@ final class TranslogDirectoryReader extends DirectoryReader {
                 SourceFieldMapper mapper = mappingLookup.getMapping().getMetadataMapperByClass(SourceFieldMapper.class);
                 if (mapper != null) {
                     try {
-                        sourceBytes = mapper.applyFilters(sourceBytes, null);
+                        sourceBytes = mapper.getFilter().apply(sourceBytes, null);
                     } catch (IOException e) {
                         throw new IOException("Failed to reapply filters after reading from translog", e);
                     }
