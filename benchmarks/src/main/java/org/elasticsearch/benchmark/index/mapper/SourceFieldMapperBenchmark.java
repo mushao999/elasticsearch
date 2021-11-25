@@ -135,19 +135,8 @@ public class SourceFieldMapperBenchmark {
     ) throws IOException {
         BytesReference originalSource = context.sourceToParse().source();
         XContentType contentType = context.sourceToParse().getXContentType();
-        final BytesReference adaptedSource = sourceFilter.apply(originalSource, contentType);
-
-        if (adaptedSource != null) {
-            final BytesRef ref = adaptedSource.toBytesRef();
-            context.doc().add(new StoredField(SourceFieldMapper.NAME, ref.bytes, ref.offset, ref.length));
-        }
-
-        if (originalSource != null && adaptedSource != originalSource) {
-            // if we omitted source or modified it we add the _recovery_source to ensure we have it for ops based recovery
-            BytesRef ref = originalSource.toBytesRef();
-            context.doc().add(new StoredField(RECOVERY_SOURCE_NAME, ref.bytes, ref.offset, ref.length));
-            context.doc().add(new NumericDocValuesField(RECOVERY_SOURCE_NAME, 1));
-        }
+        sourceFilter.apply(originalSource, contentType);
+        //skip irrelevant logic in SourceFieldMapper#preParse
     }
 
     /**
@@ -181,7 +170,7 @@ public class SourceFieldMapperBenchmark {
         private final LuceneDocument document = new LuceneDocument();
 
         protected BenchmarkDocumentParserContext(BytesReference sourceBytes) {
-            super(MappingLookup.EMPTY, null, null, null, new SourceToParse("source_mapper_benchmark", "1", sourceBytes, XContentType.JSON));
+            super(MappingLookup.EMPTY, null, null, null, new SourceToParse("source_mapper_benchmark", sourceBytes, XContentType.JSON));
         }
 
         @Override
