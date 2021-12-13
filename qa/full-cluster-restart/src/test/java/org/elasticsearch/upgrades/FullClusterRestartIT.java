@@ -19,6 +19,7 @@ import org.elasticsearch.cluster.metadata.IndexMetadata;
 import org.elasticsearch.cluster.metadata.MetadataIndexStateService;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.time.DateUtils;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.core.Booleans;
 import org.elasticsearch.core.CheckedFunction;
@@ -51,8 +52,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
-import static io.github.nik9000.mapmatcher.MapMatcher.assertMap;
-import static io.github.nik9000.mapmatcher.MapMatcher.matchesMap;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
@@ -60,6 +59,8 @@ import static java.util.stream.Collectors.toList;
 import static org.elasticsearch.cluster.metadata.IndexNameExpressionResolver.SYSTEM_INDEX_ENFORCEMENT_VERSION;
 import static org.elasticsearch.cluster.routing.UnassignedInfo.INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING;
 import static org.elasticsearch.cluster.routing.allocation.decider.MaxRetryAllocationDecider.SETTING_ALLOCATION_MAX_RETRY;
+import static org.elasticsearch.test.MapMatcher.assertMap;
+import static org.elasticsearch.test.MapMatcher.matchesMap;
 import static org.elasticsearch.transport.RemoteClusterService.REMOTE_CLUSTER_COMPRESS;
 import static org.elasticsearch.xcontent.XContentFactory.jsonBuilder;
 import static org.hamcrest.Matchers.containsString;
@@ -225,7 +226,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
     }
 
     public void testSearchTimeSeriesMode() throws Exception {
-        assumeTrue("time series mode introduced in 8.0.0", getOldClusterVersion().onOrAfter(Version.V_8_0_0));
+        assumeTrue("time series index sort by _tsid introduced in 8.1.0", getOldClusterVersion().onOrAfter(Version.V_8_1_0));
         int numDocs;
         if (isRunningAgainstOldCluster()) {
             numDocs = createTimeSeriesModeIndex(1);
@@ -267,7 +268,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
     }
 
     public void testNewReplicasTimeSeriesMode() throws Exception {
-        assumeTrue("time series mode introduced in 8.0.0", getOldClusterVersion().onOrAfter(Version.V_8_0_0));
+        assumeTrue("time series index sort by _tsid introduced in 8.1.0", getOldClusterVersion().onOrAfter(Version.V_8_1_0));
         if (isRunningAgainstOldCluster()) {
             createTimeSeriesModeIndex(0);
         } else {
@@ -307,6 +308,8 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
             mappingsAndSettings.field("number_of_replicas", replicas);
             mappingsAndSettings.field("mode", "time_series");
             mappingsAndSettings.field("routing_path", "dim");
+            mappingsAndSettings.field("time_series.start_time", 1L);
+            mappingsAndSettings.field("time_series.end_time", DateUtils.MAX_MILLIS_BEFORE_9999 - 1);
             mappingsAndSettings.endObject();
         }
         {
@@ -1541,6 +1544,7 @@ public class FullClusterRestartIT extends AbstractFullClusterRestartTestCase {
     }
 
     @SuppressWarnings("unchecked")
+    @AwaitsFix(bugUrl = "https://github.com/elastic/elasticsearch/issues/81409")
     public void testSystemIndexMetadataIsUpgraded() throws Exception {
         final String systemIndexWarning = "this request accesses system indices: [.tasks], but in a future major version, direct "
             + "access to system indices will be prevented by default";
